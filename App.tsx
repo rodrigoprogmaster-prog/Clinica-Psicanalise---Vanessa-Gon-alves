@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType } from './types';
 import Dashboard from './components/Dashboard';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useLocalStorage('isAuthenticated', false);
   const [showTodayModal, setShowTodayModal] = useState(false);
   const [isMyDaySidebarOpen, setIsMyDaySidebarOpen] = useState(false);
+  const [financialFilterPatient, setFinancialFilterPatient] = useState<Patient | null>(null);
 
   // Centralized state with persistence
   const [patients, setPatients] = useLocalStorage<Patient[]>('patients', []);
@@ -43,6 +45,9 @@ const App: React.FC = () => {
     }
     if (view !== 'settings') {
         setIsSettingsUnlocked(false);
+    }
+    if (view !== 'financial') {
+        setFinancialFilterPatient(null);
     }
   }, []);
 
@@ -65,6 +70,14 @@ const App: React.FC = () => {
     setActiveView('pep');
   }, []);
 
+  const handleViewPatientFinancials = useCallback((patientId: string) => {
+    const patient = patients.find(p => p.id === patientId);
+    if (patient) {
+      setFinancialFilterPatient(patient);
+      navigateTo('financial');
+    }
+  }, [patients, navigateTo]);
+
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     navigateTo('dashboard');
@@ -82,7 +95,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeView) {
       case 'patients':
-        return <PatientManagement onNavigate={navigateTo} onViewPEP={viewPatientPEP} patients={patients} setPatients={setPatients} />;
+        return <PatientManagement onNavigate={navigateTo} onViewPEP={viewPatientPEP} onViewFinancials={handleViewPatientFinancials} patients={patients} setPatients={setPatients} />;
       case 'schedule':
         return <AppointmentScheduler 
                   onNavigate={navigateTo} 
@@ -104,7 +117,13 @@ const App: React.FC = () => {
                 setObservations={setObservations}
               />;
       case 'financial':
-        return <FinancialModule onNavigate={navigateTo} transactions={transactions} setTransactions={setTransactions} />;
+        return <FinancialModule 
+                  onNavigate={navigateTo} 
+                  transactions={transactions} 
+                  setTransactions={setTransactions}
+                  filteredPatient={financialFilterPatient}
+                  onClearPatientFilter={() => setFinancialFilterPatient(null)}
+                />;
       case 'admin':
         return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
       case 'settings':

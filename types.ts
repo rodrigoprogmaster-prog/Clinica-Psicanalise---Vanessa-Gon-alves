@@ -59,6 +59,7 @@ export interface Transaction {
   amount: number;
   type: 'income' | 'expense';
   date: string;
+  patientId?: string;
 }
 
 export type View = 'dashboard' | 'patients' | 'schedule' | 'pep' | 'financial' | 'admin' | 'managementDashboard' | 'settings';

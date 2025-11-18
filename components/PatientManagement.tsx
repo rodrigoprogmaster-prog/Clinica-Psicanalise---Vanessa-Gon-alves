@@ -1,12 +1,15 @@
+
 import React, { useState } from 'react';
 import { View, Patient } from '../types';
 import ModuleContainer from './ModuleContainer';
 import TrashIcon from './icons/TrashIcon';
 import TooltipIcon from './icons/TooltipIcon';
+import MoneyIcon from './icons/MoneyIcon';
 
 interface PatientManagementProps {
   onNavigate: (view: View) => void;
   onViewPEP: (patientId: string) => void;
+  onViewFinancials: (patientId: string) => void;
   patients: Patient[];
   setPatients: React.Dispatch<React.SetStateAction<Patient[]>>;
 }
@@ -21,7 +24,7 @@ const Tooltip: React.FC<{ text: string }> = ({ text }) => (
 );
 
 
-const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onViewPEP, patients, setPatients }) => {
+const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onViewPEP, onViewFinancials, patients, setPatients }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [formStep, setFormStep] = useState<'details' | 'confirm'>('details');
@@ -309,6 +312,14 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                       className="text-indigo-600 hover:text-indigo-800 font-medium text-sm whitespace-nowrap"
                     >
                       Ver PEP
+                    </button>
+                     <button
+                        onClick={() => onViewFinancials(patient.id)}
+                        className="text-emerald-600 hover:text-emerald-800 font-medium text-sm flex items-center gap-1"
+                        aria-label={`Ver financeiro de ${patient.name}`}
+                     >
+                        <MoneyIcon />
+                        <span className="hidden sm:inline">Financeiro</span>
                     </button>
                      <button
                       onClick={() => setPatientToDelete(patient)}

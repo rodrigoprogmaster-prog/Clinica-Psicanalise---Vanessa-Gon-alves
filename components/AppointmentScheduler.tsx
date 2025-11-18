@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { View, Appointment, Patient, ConsultationType, Transaction } from '../types';
 import ModuleContainer from './ModuleContainer';
@@ -67,6 +68,7 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate,
               amount: modalState.appointment.price,
               type: 'income',
               date: modalState.appointment.date,
+              patientId: modalState.appointment.patientId,
           };
           setTransactions(prev => [newTransaction, ...prev]);
       }

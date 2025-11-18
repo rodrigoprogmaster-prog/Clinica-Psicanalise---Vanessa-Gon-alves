@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { View, Patient, Appointment, Transaction } from '../types';
 import ModuleContainer from './ModuleContainer';
@@ -11,17 +12,6 @@ interface AdminModuleProps {
 
 const AdminModule: React.FC<AdminModuleProps> = ({ onNavigate, patients, appointments, transactions }) => {
 
-  // Financial Report Calculations
-  const financialSummary = useMemo(() => {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    return {
-      income,
-      expense,
-      balance: income - expense
-    };
-  }, [transactions]);
-  
   // Attendance Report Calculations
   const attendanceSummary = useMemo(() => {
     const summary = new Map<string, { name: string, completed: number, canceled: number, scheduled: number }>();
@@ -67,16 +57,6 @@ const AdminModule: React.FC<AdminModuleProps> = ({ onNavigate, patients, appoint
         <section>
           <h2 className="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">Relatórios</h2>
           <div className="space-y-6 mt-4">
-            
-            {/* Financial Report Card */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-              <h3 className="text-lg font-semibold text-slate-700 mb-4">Relatório Financeiro Geral</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-emerald-100 p-4 rounded-lg text-center"><h4 className="text-sm font-semibold text-emerald-800">Receitas</h4><p className="text-2xl font-bold text-emerald-900">{financialSummary.income.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p></div>
-                  <div className="bg-rose-100 p-4 rounded-lg text-center"><h4 className="text-sm font-semibold text-rose-800">Despesas</h4><p className="text-2xl font-bold text-rose-900">{financialSummary.expense.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p></div>
-                  <div className="bg-violet-100 p-4 rounded-lg text-center"><h4 className="text-sm font-semibold text-violet-800">Saldo</h4><p className={`text-2xl font-bold ${financialSummary.balance >= 0 ? 'text-violet-900' : 'text-rose-900'}`}>{financialSummary.balance.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p></div>
-              </div>
-            </div>
 
             {/* Attendance Report Card */}
             <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
