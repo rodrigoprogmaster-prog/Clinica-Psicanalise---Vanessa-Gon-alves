@@ -209,46 +209,6 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       <div className="space-y-6">
-        {/* Card Histórico de Sessões */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-          <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Anotação de Sessão</h3>
-          <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite as anotações da sessão aqui..."></textarea>
-          <div className="text-right mt-2 mb-6">
-              <button onClick={handleSaveNote} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newNote.trim()}>Salvar Anotação</button>
-          </div>
-          <div className="space-y-4">
-            {patientNotes.length > 0 ? patientNotes.map(note => (
-              <div key={note.id} className="bg-slate-50 p-4 rounded-md border border-slate-200">
-                <div className="flex justify-between items-start">
-                  <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(note.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
-                  <button onClick={() => handlePrintNote(note)} className="p-1 text-slate-500 hover:text-indigo-600" title="Imprimir / Salvar PDF">
-                    <PrintIcon />
-                  </button>
-                </div>
-                <p className="text-slate-700 whitespace-pre-wrap">{note.content}</p>
-              </div>
-            )) : <p className="text-slate-500 text-center py-4">Nenhuma anotação de sessão encontrada.</p>}
-          </div>
-        </div>
-        
-        {/* Card Histórico de Consultas */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-            <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Consultas</h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {patientAppointments.length > 0 ? patientAppointments.map(app => (
-                <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex flex-wrap justify-between items-center">
-                    <div>
-                        <p className="font-semibold text-slate-600">{new Date(app.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {app.time}</p>
-                        <p className="text-sm text-slate-500">{app.patientName}</p>
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[app.status]}`}>
-                        {statusLabels[app.status]}
-                    </span>
-                </div>
-            )) : <p className="text-slate-500 text-center py-4">Nenhum histórico de consultas para este paciente.</p>}
-            </div>
-        </div>
-
         {/* Card Anamnese */}
         <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
           <h3 className="text-lg font-semibold text-slate-700 mb-4">Anamnese / Ficha Clínica Inicial</h3>
@@ -287,6 +247,28 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
           )}
         </div>
 
+        {/* Card Histórico de Sessões */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
+          <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Anotação de Sessão</h3>
+          <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite as anotações da sessão aqui..."></textarea>
+          <div className="text-right mt-2 mb-6">
+              <button onClick={handleSaveNote} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newNote.trim()}>Salvar Anotação</button>
+          </div>
+          <div className="space-y-4">
+            {patientNotes.length > 0 ? patientNotes.map(note => (
+              <div key={note.id} className="bg-slate-50 p-4 rounded-md border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(note.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
+                  <button onClick={() => handlePrintNote(note)} className="p-1 text-slate-500 hover:text-indigo-600" title="Imprimir / Salvar PDF">
+                    <PrintIcon />
+                  </button>
+                </div>
+                <p className="text-slate-700 whitespace-pre-wrap">{note.content}</p>
+              </div>
+            )) : <p className="text-slate-500 text-center py-4">Nenhuma anotação de sessão encontrada.</p>}
+          </div>
+        </div>
+        
         {/* Card Observações Internas */}
         <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
           <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Observação Interna</h3>
@@ -303,6 +285,24 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
               </div>
             )) : <p className="text-slate-500 text-center py-4">Nenhuma observação interna encontrada.</p>}
           </div>
+        </div>
+
+        {/* Card Histórico de Consultas */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
+            <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Consultas</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {patientAppointments.length > 0 ? patientAppointments.map(app => (
+                <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex flex-wrap justify-between items-center">
+                    <div>
+                        <p className="font-semibold text-slate-600">{new Date(app.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {app.time}</p>
+                        <p className="text-sm text-slate-500">{app.patientName}</p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[app.status]}`}>
+                        {statusLabels[app.status]}
+                    </span>
+                </div>
+            )) : <p className="text-slate-500 text-center py-4">Nenhum histórico de consultas para este paciente.</p>}
+            </div>
         </div>
       </div>
     </ModuleContainer>

@@ -5,6 +5,7 @@ import PatientIcon from './icons/PatientIcon';
 import CalendarIcon from './icons/CalendarIcon';
 import DollarSignIcon from './icons/DollarSignIcon';
 import ChartBarIcon from './icons/ChartBarIcon';
+import { getTodayString } from '../utils/formatting';
 
 interface ManagementDashboardProps {
   onNavigate: (view: View) => void;
@@ -61,7 +62,7 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
             revenueThisMonth: revenueThisMonth.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
             appointmentsThisMonth,
             occupancy,
-            totalPatients: patients.length
+            totalPatients: patients.filter(p => p.isActive).length
         }
 
     }, [patients, appointments, transactions]);
@@ -87,10 +88,17 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
         return { data, max };
     }, [transactions]);
 
-    const upcomingAppointments = appointments
-        .filter(a => a.status === 'scheduled' && new Date(a.date) >= new Date())
-        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(0, 5);
+    const upcomingAppointments = useMemo(() => {
+        const todayString = getTodayString();
+        return appointments
+            .filter(a => a.status === 'scheduled' && a.date >= todayString)
+            .sort((a, b) => {
+                const dateTimeA = `${a.date}T${a.time}`;
+                const dateTimeB = `${b.date}T${b.time}`;
+                return new Date(dateTimeA).getTime() - new Date(dateTimeB).getTime();
+            })
+            .slice(0, 5);
+    }, [appointments]);
         
     return (
         <ModuleContainer title="Dashboard Gerencial" onBack={() => onNavigate('dashboard')}>
