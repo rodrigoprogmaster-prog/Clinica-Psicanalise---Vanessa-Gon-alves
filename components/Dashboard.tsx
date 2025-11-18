@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { View, Appointment } from '../types';
 import Card from './Card';
@@ -15,10 +14,11 @@ import { getTodayString } from '../utils/formatting';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
+  onViewPEP: (patientId: string) => void;
   appointments: Appointment[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, onViewPEP }) => {
   const [showNotification, setShowNotification] = useState(true);
 
   const upcomingAppointmentsToday = useMemo(() => {
@@ -47,7 +47,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments }) => {
               <p className="font-bold">Próximas Consultas de Hoje</p>
               <ul className="list-disc list-inside text-sm mt-1">
                 {upcomingAppointmentsToday.map(app => (
-                  <li key={app.id}>{app.patientName} às {app.time}</li>
+                  <li key={app.id}>
+                    <button 
+                      onClick={() => onViewPEP(app.patientId)} 
+                      className="font-semibold text-purple-800 hover:underline"
+                    >
+                      {app.patientName}
+                    </button>
+                    <span> às {app.time}</span>
+                  </li>
                 ))}
               </ul>
             </div>

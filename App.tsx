@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType } from './types';
 import Dashboard from './components/Dashboard';
@@ -116,6 +115,9 @@ const App: React.FC = () => {
                 setNotes={setNotes}
                 observations={observations}
                 setObservations={setObservations}
+                appointments={appointments}
+                setAppointments={setAppointments}
+                setTransactions={setTransactions}
               />;
       case 'financial':
         return <FinancialModule 
@@ -139,7 +141,7 @@ const App: React.FC = () => {
         return <ManagementDashboard onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
       case 'dashboard':
       default:
-        return <Dashboard onNavigate={navigateTo} appointments={appointments} />;
+        return <Dashboard onNavigate={navigateTo} onViewPEP={viewPatientPEP} appointments={appointments} />;
     }
   };
 
