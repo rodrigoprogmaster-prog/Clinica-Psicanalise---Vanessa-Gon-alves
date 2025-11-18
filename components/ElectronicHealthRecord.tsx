@@ -73,9 +73,9 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   const canFinalize = isAnamnesisComplete && hasTodayNoteSaved;
   
   const statusClasses: {[key: string]: string} = {
-    scheduled: 'bg-violet-100 text-violet-800 status-scheduled',
-    completed: 'bg-emerald-100 text-emerald-800 status-completed',
-    canceled: 'bg-rose-100 text-rose-800 status-canceled'
+    scheduled: 'bg-violet-100 text-violet-800',
+    completed: 'bg-emerald-100 text-emerald-800',
+    canceled: 'bg-rose-100 text-rose-800'
   };
 
   const statusLabels: {[key: string]: string} = {
@@ -340,14 +340,29 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
           )}
         </div>
 
-        {/* Card Histórico de Sessões */}
+        {/* Card Nova Anotação */}
         <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
           <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Anotação de Sessão</h3>
           <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite as anotações da sessão aqui..."></textarea>
-          <div className="text-right mt-2 mb-6">
+          <div className="text-right mt-2">
               <button onClick={handleSaveNote} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newNote.trim()}>Salvar Anotação</button>
           </div>
-          <div className="space-y-4">
+        </div>
+        
+        {/* Card Nova Observação */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
+          <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Observação Interna</h3>
+           <p className="text-sm text-slate-500 mb-3">Estas notas são privadas e visíveis apenas para você.</p>
+          <textarea value={newObservation} onChange={(e) => setNewObservation(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite suas observações, hipóteses ou insights..."></textarea>
+          <div className="text-right mt-2">
+              <button onClick={handleSaveObservation} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newObservation.trim()}>Salvar Observação</button>
+          </div>
+        </div>
+
+        {/* Card Histórico de Sessões */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
+          <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Sessões</h3>
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
             {patientNotes.length > 0 ? patientNotes.map(note => (
               <div key={note.id} className="bg-slate-50 p-4 rounded-md border border-slate-200">
                 <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(note.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
@@ -356,16 +371,11 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
             )) : <p className="text-slate-500 text-center py-4">Nenhuma anotação de sessão encontrada.</p>}
           </div>
         </div>
-        
-        {/* Card Observações Internas */}
+
+        {/* Card Histórico de Observações */}
         <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-          <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Observação Interna</h3>
-           <p className="text-sm text-slate-500 mb-3">Estas notas são privadas e visíveis apenas para você.</p>
-          <textarea value={newObservation} onChange={(e) => setNewObservation(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite suas observações, hipóteses ou insights..."></textarea>
-          <div className="text-right mt-2 mb-6">
-              <button onClick={handleSaveObservation} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newObservation.trim()}>Salvar Observação</button>
-          </div>
-          <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Observações Internas</h3>
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
             {patientObservations.length > 0 ? patientObservations.map(obs => (
               <div key={obs.id} className="bg-amber-50 p-4 rounded-md border border-amber-200">
                 <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(obs.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
@@ -374,7 +384,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
             )) : <p className="text-slate-500 text-center py-4">Nenhuma observação interna encontrada.</p>}
           </div>
         </div>
-
+        
         {/* Card Histórico de Consultas */}
         <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
             <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Consultas</h3>

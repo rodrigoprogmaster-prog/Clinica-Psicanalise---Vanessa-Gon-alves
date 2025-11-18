@@ -54,7 +54,7 @@ const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, pati
   return (
     <ModuleContainer title="Histórico de Prontuários" onBack={() => onNavigate('dashboard')}>
       <p className="text-slate-500 mb-6">
-        Busque por pacientes que possuem registros clínicos. Acesse o PEP para ver o histórico completo de anotações.
+        Pesquise no histórico clínico de todos os pacientes. Encontre um paciente por nome ou data de registro para acessar o prontuário completo.
       </p>
       
       <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
