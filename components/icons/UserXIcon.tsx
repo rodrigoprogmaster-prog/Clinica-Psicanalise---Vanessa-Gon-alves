@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const MoneyIcon: React.FC = () => (
+const UserXIcon: React.FC = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="16"
@@ -13,10 +13,11 @@ const MoneyIcon: React.FC = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="17" y1="8" x2="23" y2="14" />
+    <line x1="23" y1="8" x2="17" y2="14" />
   </svg>
 );
 
-export default MoneyIcon;
+export default UserXIcon;

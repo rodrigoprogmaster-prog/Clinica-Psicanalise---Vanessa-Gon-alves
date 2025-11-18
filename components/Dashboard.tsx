@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { View, Appointment } from '../types';
 import Card from './Card';
@@ -9,6 +10,7 @@ import SettingsIcon from './icons/SettingsIcon';
 import ChartBarIcon from './icons/ChartBarIcon';
 import BellIcon from './icons/BellIcon';
 import CloseIcon from './icons/CloseIcon';
+import { getTodayString } from '../utils/formatting';
 
 
 interface DashboardProps {
@@ -19,12 +21,14 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments }) => {
   const [showNotification, setShowNotification] = useState(true);
 
-  const appointmentsForTomorrow = useMemo(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowString = tomorrow.toISOString().split('T')[0];
+  const upcomingAppointmentsToday = useMemo(() => {
+    const todayString = getTodayString();
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-    return appointments.filter(app => app.date === tomorrowString && app.status === 'scheduled');
+    return appointments
+      .filter(app => app.date === todayString && app.status === 'scheduled' && app.time >= currentTime)
+      .sort((a,b) => a.time.localeCompare(b.time));
   }, [appointments]);
   
   const handleCloseNotification = () => {
@@ -33,16 +37,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments }) => {
 
   return (
     <div>
-      {showNotification && appointmentsForTomorrow.length > 0 && (
+      {showNotification && upcomingAppointmentsToday.length > 0 && (
         <div className="bg-purple-100 border-l-4 border-purple-500 text-purple-800 p-4 mb-6 rounded-md shadow-sm relative animate-fade-in" role="alert">
           <div className="flex">
             <div className="py-1">
               <BellIcon />
             </div>
             <div className="ml-3">
-              <p className="font-bold">Lembrete de Consultas para Amanhã</p>
+              <p className="font-bold">Próximas Consultas de Hoje</p>
               <ul className="list-disc list-inside text-sm mt-1">
-                {appointmentsForTomorrow.map(app => (
+                {upcomingAppointmentsToday.map(app => (
                   <li key={app.id}>{app.patientName} às {app.time}</li>
                 ))}
               </ul>

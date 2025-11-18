@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { View, ConsultationType } from '../types';
 import ModuleContainer from './ModuleContainer';
 import TrashIcon from './icons/TrashIcon';
+import { formatCurrency, parseCurrency } from '../utils/formatting';
 
 interface SettingsModuleProps {
   onNavigate: (view: View) => void;
@@ -55,7 +57,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
 
   const handleAddConsultationType = (e: React.FormEvent) => {
     e.preventDefault();
-    const price = parseFloat(newTypePrice);
+    const price = parseCurrency(newTypePrice);
     if (newTypeName.trim() && !isNaN(price) && price >= 0) {
       const newType: ConsultationType = {
         id: `ct-${Date.now()}`,
@@ -70,6 +72,10 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
 
   const handleDeleteConsultationType = (id: string) => {
     setConsultationTypes(prev => prev.filter(ct => ct.id !== id));
+  };
+  
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTypePrice(formatCurrency(e.target.value));
   };
 
   return (
@@ -88,7 +94,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
             <div className="flex items-end gap-2">
               <div className="flex-grow">
                 <label className="block text-sm font-medium text-slate-600 mb-1">Preço (R$)</label>
-                <input type="number" step="0.01" min="0" value={newTypePrice} onChange={e => setNewTypePrice(e.target.value)} placeholder="150.00" className="w-full p-2 border rounded-md bg-white border-slate-300" required />
+                <input type="text" value={newTypePrice} onChange={handlePriceChange} placeholder="R$ 0,00" className="w-full p-2 border rounded-md bg-white border-slate-300" required />
               </div>
               <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 h-10">Salvar</button>
             </div>

@@ -20,6 +20,7 @@ export interface Patient {
     phone: string;
   };
   anamnesis?: Anamnesis;
+  isActive: boolean;
 }
 
 export interface ConsultationType {

@@ -1,6 +1,8 @@
+
 import React, { useMemo } from 'react';
 import { Appointment } from '../types';
 import CloseIcon from './icons/CloseIcon';
+import { getTodayString } from '../utils/formatting';
 
 interface TodayAppointmentsModalProps {
   onClose: () => void;
@@ -9,7 +11,7 @@ interface TodayAppointmentsModalProps {
 
 const TodayAppointmentsModal: React.FC<TodayAppointmentsModalProps> = ({ onClose, appointments }) => {
   const todayAppointments = useMemo(() => {
-    const todayString = new Date().toISOString().split('T')[0];
+    const todayString = getTodayString();
     return appointments
       .filter(app => app.date === todayString && app.status === 'scheduled')
       .sort((a, b) => a.time.localeCompare(b.time));

@@ -101,6 +101,8 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate,
     .filter(a => a.status === 'completed' || a.status === 'canceled')
     .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
 
+  const activePatients = patients.filter(p => p.isActive);
+
   return (
     <ModuleContainer title="Agenda de Consultas" onBack={() => onNavigate('dashboard')}>
       {modalState && (
@@ -145,7 +147,7 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate,
                     <label className="block text-sm font-medium text-slate-600 mb-1">Paciente</label>
                     <select name="patientId" value={newAppointment.patientId} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white border-slate-300">
                         <option value="">Selecione...</option>
-                        {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {activePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
               </div>
                <div>

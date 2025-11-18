@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType } from './types';
 import Dashboard from './components/Dashboard';
 import PatientManagement from './components/PatientManagement';
@@ -16,8 +16,9 @@ import useLocalStorage from './hooks/useLocalStorage';
 import Login from './components/Login';
 import LogoutIcon from './components/icons/LogoutIcon';
 import TodayAppointmentsModal from './components/TodayAppointmentsModal';
-import MyDaySidebar from './components/MyDaySidebar';
+import MyDayModal from './components/MyDayModal';
 import MyDayIcon from './components/icons/MyDayIcon';
+import { getTodayString } from './utils/formatting';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -26,7 +27,7 @@ const App: React.FC = () => {
   const [isSettingsUnlocked, setIsSettingsUnlocked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useLocalStorage('isAuthenticated', false);
   const [showTodayModal, setShowTodayModal] = useState(false);
-  const [isMyDaySidebarOpen, setIsMyDaySidebarOpen] = useState(false);
+  const [isMyDayModalOpen, setIsMyDayModalOpen] = useState(false);
   const [financialFilterPatient, setFinancialFilterPatient] = useState<Patient | null>(null);
 
   // Centralized state with persistence
@@ -81,7 +82,7 @@ const App: React.FC = () => {
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     navigateTo('dashboard');
-    const todayString = new Date().toISOString().split('T')[0];
+    const todayString = getTodayString();
     const todayAppointments = appointments.filter(app => app.date === todayString && app.status === 'scheduled');
     if (todayAppointments.length > 0) {
       setShowTodayModal(true);
@@ -125,7 +126,7 @@ const App: React.FC = () => {
                   onClearPatientFilter={() => setFinancialFilterPatient(null)}
                 />;
       case 'admin':
-        return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
+        return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} />;
       case 'settings':
         return <SettingsModule 
                   onNavigate={navigateTo}
@@ -161,11 +162,12 @@ const App: React.FC = () => {
           onClose={() => setShowTodayModal(false)}
         />
       )}
-      <MyDaySidebar
-        appointments={appointments}
-        show={isMyDaySidebarOpen}
-        onClose={() => setIsMyDaySidebarOpen(false)}
-      />
+      {isMyDayModalOpen && (
+        <MyDayModal
+          appointments={appointments}
+          onClose={() => setIsMyDayModalOpen(false)}
+        />
+      )}
       <header className="bg-white shadow-md sticky top-0 z-40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
           <button onClick={() => navigateTo('dashboard')} className="text-left">
@@ -176,7 +178,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <HeaderClock />
             <button 
-              onClick={() => setIsMyDaySidebarOpen(true)}
+              onClick={() => setIsMyDayModalOpen(true)}
               className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
               aria-label="Meu Dia"
             >

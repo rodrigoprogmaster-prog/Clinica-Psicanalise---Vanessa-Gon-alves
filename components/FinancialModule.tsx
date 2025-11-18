@@ -2,6 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { View, Transaction, Patient } from '../types';
 import ModuleContainer from './ModuleContainer';
+import { formatCurrency, parseCurrency } from '../utils/formatting';
+import FilterModal from './FilterModal';
 
 interface FinancialModuleProps {
     onNavigate: (view: View) => void;
@@ -14,8 +16,11 @@ interface FinancialModuleProps {
 const FinancialModule: React.FC<FinancialModuleProps> = ({ onNavigate, transactions, setTransactions, filteredPatient, onClearPatientFilter }) => {
     const [newTransaction, setNewTransaction] = useState({ description: '', amount: '', type: 'income' as 'income' | 'expense', date: new Date().toISOString().split('T')[0]});
     const [formError, setFormError] = useState('');
+    
     const [filterDate, setFilterDate] = useState('');
     const [filterMonth, setFilterMonth] = useState('');
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [filterModalType, setFilterModalType] = useState<'day' | 'month'>('day');
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
@@ -39,14 +44,34 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({ onNavigate, transacti
         onClearPatientFilter();
     };
 
+    const handleOpenFilterModal = (type: 'day' | 'month') => {
+        setFilterModalType(type);
+        setIsFilterModalOpen(true);
+    };
+
+    const handleApplyFilter = (value: string) => {
+        if(filterModalType === 'day') {
+            setFilterDate(value);
+            setFilterMonth('');
+        } else {
+            setFilterMonth(value);
+            setFilterDate('');
+        }
+        setIsFilterModalOpen(false);
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setNewTransaction(prev => ({...prev, [name]: value}));
+        if (name === 'amount') {
+          setNewTransaction(prev => ({...prev, amount: formatCurrency(value)}));
+        } else {
+          setNewTransaction(prev => ({...prev, [name]: value}));
+        }
     };
 
     const handleAddTransaction = (e: React.FormEvent) => {
         e.preventDefault();
-        const amountNumber = parseFloat(newTransaction.amount);
+        const amountNumber = parseCurrency(newTransaction.amount);
         if(!newTransaction.description || isNaN(amountNumber) || amountNumber <= 0) {
             setFormError('Descrição e valor (positivo) são obrigatórios.');
             return;
@@ -67,6 +92,14 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({ onNavigate, transacti
 
   return (
     <ModuleContainer title="Módulo Financeiro" onBack={() => onNavigate('dashboard')}>
+      {isFilterModalOpen && (
+          <FilterModal 
+            type={filterModalType}
+            onClose={() => setIsFilterModalOpen(false)}
+            onApply={handleApplyFilter}
+          />
+      )}
+      
       {filteredPatient && (
         <div className="bg-indigo-100 border-l-4 border-indigo-500 text-indigo-800 p-4 mb-6 rounded-md shadow-sm relative" role="alert">
             <div className="flex justify-between items-center">
@@ -100,17 +133,17 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({ onNavigate, transacti
       <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
             <h3 className="text-lg font-semibold mb-4 text-slate-700">Filtrar Transações</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Filtrar por Dia</label>
-                    <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-2 border rounded-md bg-white border-slate-300" />
-                </div>
-                 <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Filtrar por Mês</label>
-                    <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-full p-2 border rounded-md bg-white border-slate-300" />
-                </div>
-                <div>
-                    <button onClick={handleClearFilters} className="w-full bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 h-10">Limpar Filtros</button>
-                </div>
+                <button onClick={() => handleOpenFilterModal('day')} className="w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-50 h-10">Filtrar por Dia</button>
+                <button onClick={() => handleOpenFilterModal('month')} className="w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-50 h-10">Filtrar por Mês</button>
+                <button onClick={handleClearFilters} className="w-full bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 h-10">Limpar Filtros</button>
+            </div>
+             <div className="text-sm text-slate-500 mt-3">
+              {(filterDate || filterMonth) && (
+                <p>
+                  Filtro ativo: {filterDate ? new Date(filterDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}
+                  {filterMonth ? new Date(filterMonth + '-02').toLocaleDateString('pt-BR', {month: 'long', year: 'numeric', timeZone: 'UTC'}) : ''}
+                </p>
+              )}
             </div>
       </div>
       
@@ -123,7 +156,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({ onNavigate, transacti
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-slate-600 mb-1">Valor (R$)</label>
-                    <input type="number" name="amount" step="0.01" value={newTransaction.amount} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white border-slate-300" />
+                    <input type="text" name="amount" placeholder="R$ 0,00" value={newTransaction.amount} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white border-slate-300" />
                 </div>
                 <div className="flex items-end gap-2">
                     <div className="flex-grow">
