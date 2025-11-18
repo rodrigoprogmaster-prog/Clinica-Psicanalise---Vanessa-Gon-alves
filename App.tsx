@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType } from './types';
 import Dashboard from './components/Dashboard';
@@ -24,7 +25,9 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordModalTarget, setPasswordModalTarget] = useState<'settings' | 'patients' | null>(null);
   const [isSettingsUnlocked, setIsSettingsUnlocked] = useState(false);
+  const [isPatientsUnlocked, setIsPatientsUnlocked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useLocalStorage('isAuthenticated', false);
   const [showTodayModal, setShowTodayModal] = useState(false);
   const [isMyDayModalOpen, setIsMyDayModalOpen] = useState(false);
@@ -47,6 +50,9 @@ const App: React.FC = () => {
     if (view !== 'settings') {
         setIsSettingsUnlocked(false);
     }
+    if (view !== 'patients') {
+        setIsPatientsUnlocked(false);
+    }
     if (view !== 'financial') {
         setFinancialFilterPatient(null);
     }
@@ -56,14 +62,35 @@ const App: React.FC = () => {
     if (isSettingsUnlocked) {
         navigateTo('settings');
     } else {
+        setPasswordModalTarget('settings');
         setIsPasswordModalOpen(true);
     }
   };
 
+  const handlePatientsClick = () => {
+    if (isPatientsUnlocked) {
+      navigateTo('patients');
+    } else {
+      setPasswordModalTarget('patients');
+      setIsPasswordModalOpen(true);
+    }
+  };
+
   const handlePasswordSuccess = () => {
+    if (passwordModalTarget === 'settings') {
+      setIsSettingsUnlocked(true);
+      navigateTo('settings');
+    } else if (passwordModalTarget === 'patients') {
+      setIsPatientsUnlocked(true);
+      navigateTo('patients');
+    }
     setIsPasswordModalOpen(false);
-    setIsSettingsUnlocked(true);
-    navigateTo('settings');
+    setPasswordModalTarget(null);
+  };
+  
+  const handlePasswordModalClose = () => {
+    setIsPasswordModalOpen(false);
+    setPasswordModalTarget(null);
   };
 
   const viewPatientPEP = useCallback((patientId: string) => {
@@ -129,7 +156,7 @@ const App: React.FC = () => {
                   onClearPatientFilter={() => setFinancialFilterPatient(null)}
                 />;
       case 'admin':
-        return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} />;
+        return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
       case 'settings':
         return <SettingsModule 
                   onNavigate={navigateTo}
@@ -144,7 +171,7 @@ const App: React.FC = () => {
         return <RecordsHistory onNavigate={navigateTo} notes={notes} patients={patients} onViewPEP={viewPatientPEP} />;
       case 'dashboard':
       default:
-        return <Dashboard onNavigate={navigateTo} onViewPEP={viewPatientPEP} appointments={appointments} />;
+        return <Dashboard onNavigate={navigateTo} onViewPEP={viewPatientPEP} appointments={appointments} onNavigateToPatients={handlePatientsClick} />;
     }
   };
 
@@ -156,9 +183,10 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50 text-slate-800">
        {isPasswordModalOpen && (
         <PasswordModal 
-          onClose={() => setIsPasswordModalOpen(false)}
+          onClose={handlePasswordModalClose}
           onSuccess={handlePasswordSuccess}
           correctPassword={password}
+          target={passwordModalTarget}
         />
       )}
       {showTodayModal && (

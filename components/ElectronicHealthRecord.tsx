@@ -4,6 +4,15 @@ import ModuleContainer from './ModuleContainer';
 import { getTodayString } from '../utils/formatting';
 import PrintIcon from './icons/PrintIcon';
 
+const Tooltip: React.FC<{ text: string }> = ({ text }) => (
+  <span className="absolute right-0 bottom-full mb-2 w-max max-w-xs p-2 text-xs text-white bg-slate-700 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+    {text}
+    <svg className="absolute text-slate-700 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255">
+      <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
+    </svg>
+  </span>
+);
+
 interface ElectronicHealthRecordProps {
   onNavigate: (view: View) => void;
   patientId: string | null;
@@ -48,13 +57,41 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
     mainComplaint: '', historyOfComplaint: '', personalHistory: '', familyHistory: ''
   });
 
+  const isAnamnesisComplete = useMemo(() => {
+    return patient?.anamnesis &&
+           patient.anamnesis.mainComplaint.trim() !== '' &&
+           patient.anamnesis.historyOfComplaint.trim() !== '' &&
+           patient.anamnesis.personalHistory.trim() !== '' &&
+           patient.anamnesis.familyHistory.trim() !== '';
+  }, [patient?.anamnesis]);
+
+  const hasTodayNoteSaved = useMemo(() => {
+    if (!todayAppointment) return false;
+    return patientNotes.some(note => note.appointmentId === todayAppointment.id);
+  }, [patientNotes, todayAppointment]);
+  
+  const canFinalize = isAnamnesisComplete && hasTodayNoteSaved;
+  
+  const statusClasses: {[key: string]: string} = {
+    scheduled: 'bg-violet-100 text-violet-800 status-scheduled',
+    completed: 'bg-emerald-100 text-emerald-800 status-completed',
+    canceled: 'bg-rose-100 text-rose-800 status-canceled'
+  };
+
+  const statusLabels: {[key: string]: string} = {
+    scheduled: 'Agendada',
+    completed: 'Realizada',
+    canceled: 'Cancelada'
+  };
+
   const handleSaveNote = () => {
     if (newNote.trim() && patientId) {
         const note: SessionNote = {
             id: `n${Date.now()}`,
             patientId,
             date: new Date().toISOString(),
-            content: newNote
+            content: newNote,
+            appointmentId: todayAppointment?.id
         };
         setNotes(prev => [note, ...prev]);
         setNewNote('');
@@ -83,24 +120,13 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   };
 
   const handleFinalizeConsultation = () => {
-    if (todayAppointment && newNote.trim()) {
-      // 1. Save the session note
-      const note: SessionNote = {
-          id: `n${Date.now()}`,
-          patientId: todayAppointment.patientId,
-          date: new Date().toISOString(),
-          content: newNote,
-          appointmentId: todayAppointment.id
-      };
-      setNotes(prev => [note, ...prev]);
-      setNewNote('');
-
-      // 2. Update appointment status
+    if (todayAppointment && canFinalize) {
+      if(newObservation.trim() !== '') {
+        handleSaveObservation();
+      }
       setAppointments(prev => prev.map(app => 
         app.id === todayAppointment.id ? { ...app, status: 'completed' } : app
       ));
-      
-      // 3. Create transaction
       const newTransaction: Transaction = {
         id: `t${Date.now()}`,
         description: `Consulta - ${todayAppointment.patientName}`,
@@ -113,48 +139,119 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
     }
   };
   
-  const handlePrintNote = (note: SessionNote) => {
+  const handleExportPEPToPDF = () => {
     if (!patient) return;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-        const noteDate = new Date(note.date);
-        const formattedDate = noteDate.toLocaleDateString('pt-BR');
-        printWindow.document.title = `${patient.name} - ${formattedDate}`;
+        const todayString = new Date().toISOString().slice(0, 10);
+        printWindow.document.title = `Prontuário - ${patient.name} - ${todayString}`;
         
-        printWindow.document.write(`
+        let reportHTML = `
             <html>
                 <head>
-                    <title>${patient.name} - ${formattedDate}</title>
+                    <title>Prontuário - ${patient.name}</title>
                     <style>
-                        body { font-family: 'Inter', sans-serif; margin: 2rem; color: #333; }
-                        h1, h2 { color: #111; }
-                        h1 { font-size: 1.5rem; }
-                        h2 { font-size: 1.2rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; margin-top: 2rem;}
-                        p { white-space: pre-wrap; line-height: 1.6; }
-                        .meta { color: #555; font-size: 0.9rem; margin-bottom: 0.5rem; }
+                        body { font-family: 'Inter', sans-serif; margin: 2rem; color: #333; font-size: 12px; }
+                        h1, h2, h3 { color: #111; margin: 0; padding: 0;}
+                        h1 { font-size: 24px; text-align: center; margin-bottom: 1rem; color: #3730a3; }
+                        h2 { font-size: 18px; border-bottom: 2px solid #3730a3; color: #3730a3; padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 1rem; }
+                        h3 { font-size: 14px; font-weight: bold; margin-top: 1rem; color: #4338ca; }
+                        p { margin: 0.5rem 0; line-height: 1.6; white-space: pre-wrap; }
+                        .patient-info { background-color: #f3f4f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e5e7eb; }
+                        .patient-info p { margin: 0.25rem 0; }
+                        .section { margin-bottom: 1.5rem; page-break-inside: avoid; }
+                        .history-item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafafa; }
+                        .history-item-header { font-weight: bold; color: #555; margin-bottom: 0.5rem; }
+                        .appointment-item { display: flex; justify-content: space-between; padding: 0.75rem 0.5rem; border-bottom: 1px solid #eee; }
+                        .appointment-item:last-child { border-bottom: none; }
+                        .status-scheduled { color: #5b21b6; font-weight: bold; }
+                        .status-completed { color: #059669; font-weight: bold; }
+                        .status-canceled { color: #dc2626; font-weight: bold; }
                         @media print {
                             @page { size: A4; margin: 1in; }
-                            body { margin: 0; }
+                            body { margin: 0; font-size: 10pt; }
+                            .no-print { display: none; }
                         }
                     </style>
                 </head>
                 <body>
-                    <h1>Anotação de Sessão</h1>
-                    <p class="meta"><strong>Paciente:</strong> ${patient.name}</p>
-                    <p class="meta"><strong>Data:</strong> ${noteDate.toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })}</p>
-                    <h2>Conteúdo da Anotação</h2>
-                    <p>${note.content.replace(/\n/g, '<br>')}</p>
-                </body>
-            </html>
-        `);
+                    <h1>Prontuário Clínico</h1>`;
+
+        reportHTML += `
+            <div class="patient-info">
+                <h3>Dados do Paciente</h3>
+                <p><strong>Nome:</strong> ${patient.name}</p>
+                <p><strong>Email:</strong> ${patient.email}</p>
+                <p><strong>Telefone:</strong> ${patient.phone || 'N/A'}</p>
+                <p><strong>Nascimento:</strong> ${new Date(patient.dateOfBirth).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+            </div>`;
+
+        reportHTML += `<div class="section"><h2>Anamnese / Ficha Clínica Inicial</h2>`;
+        if (patient.anamnesis && isAnamnesisComplete) {
+            reportHTML += `
+                <h3>Queixa Principal</h3><p>${patient.anamnesis.mainComplaint}</p>
+                <h3>Histórico da Queixa Atual</h3><p>${patient.anamnesis.historyOfComplaint}</p>
+                <h3>História Pessoal Relevante</h3><p>${patient.anamnesis.personalHistory}</p>
+                <h3>História Familiar</h3><p>${patient.anamnesis.familyHistory}</p>`;
+        } else {
+            reportHTML += `<p>Anamnese não preenchida.</p>`;
+        }
+        reportHTML += `</div>`;
+        
+        reportHTML += `<div class="section"><h2>Histórico de Anotações de Sessão</h2>`;
+        if (patientNotes.length > 0) {
+            [...patientNotes].reverse().forEach(note => {
+                reportHTML += `<div class="history-item"><p class="history-item-header">Data: ${new Date(note.date).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' })}</p><p>${note.content.replace(/\n/g, '<br>')}</p></div>`;
+            });
+        } else {
+            reportHTML += `<p>Nenhuma anotação de sessão encontrada.</p>`;
+        }
+        reportHTML += `</div>`;
+
+        reportHTML += `<div class="section"><h2>Histórico de Observações Internas</h2>`;
+        if (patientObservations.length > 0) {
+            [...patientObservations].reverse().forEach(obs => {
+                reportHTML += `<div class="history-item"><p class="history-item-header">Data: ${new Date(obs.date).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' })}</p><p>${obs.content.replace(/\n/g, '<br>')}</p></div>`;
+            });
+        } else {
+            reportHTML += `<p>Nenhuma observação interna encontrada.</p>`;
+        }
+        reportHTML += `</div>`;
+
+        reportHTML += `<div class="section"><h2>Histórico de Consultas</h2>`;
+        if (patientAppointments.length > 0) {
+            patientAppointments.forEach(app => {
+                reportHTML += `<div class="appointment-item"><span>${new Date(app.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às ${app.time}</span><span class="${statusClasses[app.status]}">${statusLabels[app.status]}</span></div>`;
+            });
+        } else {
+            reportHTML += `<p>Nenhum histórico de consultas encontrado.</p>`;
+        }
+        reportHTML += `</div>`;
+        
+        reportHTML += `</body></html>`;
+        
+        printWindow.document.write(reportHTML);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
             printWindow.print();
             printWindow.close();
-        }, 250);
+        }, 500);
     }
   };
+
+  const moduleActions = (
+    <div className="group relative">
+        <button
+            onClick={handleExportPEPToPDF}
+            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Exportar Prontuário para PDF"
+        >
+            <PrintIcon />
+        </button>
+        <Tooltip text="Exportar Prontuário para PDF" />
+    </div>
+  );
 
   if (!patient) {
     return (
@@ -168,21 +265,17 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       </ModuleContainer>
     );
   }
-
-  const statusClasses: {[key: string]: string} = {
-    scheduled: 'bg-violet-100 text-violet-800',
-    completed: 'bg-emerald-100 text-emerald-800',
-    canceled: 'bg-rose-100 text-rose-800'
-  };
-
-  const statusLabels: {[key: string]: string} = {
-    scheduled: 'Agendada',
-    completed: 'Realizada',
-    canceled: 'Cancelada'
-  };
   
+  const getFinalizeButtonTooltip = () => {
+    if (canFinalize) return 'Finalizar Consulta';
+    const missing = [];
+    if (!isAnamnesisComplete) missing.push('Anamnese salva');
+    if (!hasTodayNoteSaved) missing.push('Anotação de sessão salva');
+    return `Pendente: ${missing.join(', ')}`;
+  };
+
   return (
-    <ModuleContainer title={`PEP de ${patient.name}`} onBack={() => onNavigate('patients')}>
+    <ModuleContainer title={`PEP de ${patient.name}`} onBack={() => onNavigate('patients')} actions={moduleActions}>
       <div className="bg-slate-50 p-4 rounded-lg mb-6 border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-sm text-slate-700">
           <p><span className="font-semibold">Email:</span> {patient.email}</p>
           <p><span className="font-semibold">Telefone:</span> {patient.phone || 'N/A'}</p>
@@ -195,13 +288,13 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
           <div className="bg-emerald-100 border-l-4 border-emerald-500 text-emerald-800 p-4 mb-6 rounded-md shadow-sm flex justify-between items-center">
               <div>
                   <p className="font-bold">Consulta agendada para hoje às {todayAppointment.time}.</p>
-                  <p className="text-sm">Finalize a consulta após registrar as anotações da sessão.</p>
+                  <p className="text-sm">Salve a Anamnese e a Anotação de Sessão para finalizar.</p>
               </div>
               <button 
                 onClick={handleFinalizeConsultation} 
                 className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 font-semibold disabled:bg-emerald-300 disabled:cursor-not-allowed"
-                disabled={!newNote.trim()}
-                title={!newNote.trim() ? 'Escreva uma anotação para finalizar' : 'Finalizar Consulta'}
+                disabled={!canFinalize}
+                title={getFinalizeButtonTooltip()}
               >
                   Finalizar Consulta
               </button>
@@ -257,12 +350,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
           <div className="space-y-4">
             {patientNotes.length > 0 ? patientNotes.map(note => (
               <div key={note.id} className="bg-slate-50 p-4 rounded-md border border-slate-200">
-                <div className="flex justify-between items-start">
-                  <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(note.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
-                  <button onClick={() => handlePrintNote(note)} className="p-1 text-slate-500 hover:text-indigo-600" title="Imprimir / Salvar PDF">
-                    <PrintIcon />
-                  </button>
-                </div>
+                <p className="font-semibold text-sm text-slate-600 mb-2">{new Date(note.date).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'long', year:'numeric'})}</p>
                 <p className="text-slate-700 whitespace-pre-wrap">{note.content}</p>
               </div>
             )) : <p className="text-slate-500 text-center py-4">Nenhuma anotação de sessão encontrada.</p>}
@@ -275,7 +363,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
            <p className="text-sm text-slate-500 mb-3">Estas notas são privadas e visíveis apenas para você.</p>
           <textarea value={newObservation} onChange={(e) => setNewObservation(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite suas observações, hipóteses ou insights..."></textarea>
           <div className="text-right mt-2 mb-6">
-              <button onClick={handleSaveObservation} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Salvar Observação</button>
+              <button onClick={handleSaveObservation} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newObservation.trim()}>Salvar Observação</button>
           </div>
           <div className="space-y-4">
             {patientObservations.length > 0 ? patientObservations.map(obs => (

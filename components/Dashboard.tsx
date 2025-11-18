@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { View, Appointment } from '../types';
 import Card from './Card';
@@ -11,14 +12,14 @@ import BellIcon from './icons/BellIcon';
 import CloseIcon from './icons/CloseIcon';
 import { getTodayString } from '../utils/formatting';
 
-
 interface DashboardProps {
   onNavigate: (view: View) => void;
   onViewPEP: (patientId: string) => void;
   appointments: Appointment[];
+  onNavigateToPatients: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, onViewPEP }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, onViewPEP, onNavigateToPatients }) => {
   const [showNotification, setShowNotification] = useState(true);
 
   const upcomingAppointmentsToday = useMemo(() => {
@@ -83,10 +84,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, onViewP
           title="Pacientes"
           description="Cadastre e gerencie os dados dos pacientes"
           icon={<PatientIcon />}
-          onClick={() => onNavigate('patients')}
+          onClick={onNavigateToPatients}
         />
         <Card
-          title="Agenda"
+          title="Agendamento de Consultas"
           description="Visualize e agende novas consultas"
           icon={<CalendarIcon />}
           onClick={() => onNavigate('schedule')}

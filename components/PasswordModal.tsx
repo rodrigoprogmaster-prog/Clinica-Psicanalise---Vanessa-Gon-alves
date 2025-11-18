@@ -1,14 +1,18 @@
+
 import React, { useState } from 'react';
 
 interface PasswordModalProps {
   onClose: () => void;
   onSuccess: () => void;
   correctPassword?: string;
+  target: 'settings' | 'patients' | null;
 }
 
-const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, correctPassword }) => {
+const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, correctPassword, target }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  const targetText = target === 'settings' ? 'as configurações' : 'o cadastro de pacientes';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +34,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, corre
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-xl font-bold text-slate-800 mb-2">Acesso Restrito</h3>
-        <p className="text-slate-600 mb-6">Por favor, insira a senha para acessar as configurações.</p>
+        <p className="text-slate-600 mb-6">Por favor, insira a senha para acessar {targetText}.</p>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="password-input" className="sr-only">Senha</label>

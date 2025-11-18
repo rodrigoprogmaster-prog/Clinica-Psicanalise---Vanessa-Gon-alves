@@ -306,7 +306,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
               return (
               <tr 
                 key={patient.id} 
-                className={`border-b border-slate-200 hover:bg-slate-50 cursor-pointer ${!patient.isActive ? 'bg-slate-100 text-slate-500' : ''}`}
+                className={`border-b border-slate-200 transition-colors duration-150 hover:bg-indigo-50 cursor-pointer ${!patient.isActive ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : ''}`}
                 onClick={() => openEditModal(patient)}
               >
                 <td className="py-3 px-4">{patient.name}</td>
