@@ -83,12 +83,24 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   };
 
   const handleFinalizeConsultation = () => {
-    if (todayAppointment) {
-      // 1. Update appointment status
+    if (todayAppointment && newNote.trim()) {
+      // 1. Save the session note
+      const note: SessionNote = {
+          id: `n${Date.now()}`,
+          patientId: todayAppointment.patientId,
+          date: new Date().toISOString(),
+          content: newNote,
+          appointmentId: todayAppointment.id
+      };
+      setNotes(prev => [note, ...prev]);
+      setNewNote('');
+
+      // 2. Update appointment status
       setAppointments(prev => prev.map(app => 
         app.id === todayAppointment.id ? { ...app, status: 'completed' } : app
       ));
-      // 2. Create transaction
+      
+      // 3. Create transaction
       const newTransaction: Transaction = {
         id: `t${Date.now()}`,
         description: `Consulta - ${todayAppointment.patientName}`,
@@ -185,7 +197,12 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                   <p className="font-bold">Consulta agendada para hoje às {todayAppointment.time}.</p>
                   <p className="text-sm">Finalize a consulta após registrar as anotações da sessão.</p>
               </div>
-              <button onClick={handleFinalizeConsultation} className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 font-semibold">
+              <button 
+                onClick={handleFinalizeConsultation} 
+                className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 font-semibold disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                disabled={!newNote.trim()}
+                title={!newNote.trim() ? 'Escreva uma anotação para finalizar' : 'Finalizar Consulta'}
+              >
                   Finalizar Consulta
               </button>
           </div>
@@ -197,7 +214,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
           <h3 className="text-lg font-semibold text-slate-700 mb-2">Nova Anotação de Sessão</h3>
           <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} className="w-full p-2 border rounded-md h-32 bg-white border-slate-300" placeholder="Digite as anotações da sessão aqui..."></textarea>
           <div className="text-right mt-2 mb-6">
-              <button onClick={handleSaveNote} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Salvar Anotação</button>
+              <button onClick={handleSaveNote} className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700" disabled={!newNote.trim()}>Salvar Anotação</button>
           </div>
           <div className="space-y-4">
             {patientNotes.length > 0 ? patientNotes.map(note => (
@@ -286,23 +303,6 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
               </div>
             )) : <p className="text-slate-500 text-center py-4">Nenhuma observação interna encontrada.</p>}
           </div>
-        </div>
-        
-        {/* Card Evolução (Placeholder for future implementation) */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in opacity-70">
-           <div className="space-y-6">
-               <div>
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Objetivos Terapêuticos</h3>
-                  <textarea disabled className="w-full p-2 border rounded-md h-40 bg-slate-100 border-slate-300" placeholder="Funcionalidade de Evolução em desenvolvimento..."></textarea>
-               </div>
-               <div>
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Resumo da Evolução</h3>
-                  <textarea disabled className="w-full p-2 border rounded-md h-48 bg-slate-100 border-slate-300" placeholder="Funcionalidade de Evolução em desenvolvimento..."></textarea>
-               </div>
-               <div className="text-right">
-                  <button disabled className="bg-indigo-400 text-white px-4 py-2 rounded-md cursor-not-allowed">Salvar Evolução</button>
-               </div>
-           </div>
         </div>
       </div>
     </ModuleContainer>

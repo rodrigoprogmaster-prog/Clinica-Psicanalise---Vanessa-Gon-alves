@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Patient } from '../types';
+import { View, Patient, Appointment } from '../types';
 import ModuleContainer from './ModuleContainer';
 import TrashIcon from './icons/TrashIcon';
 import TooltipIcon from './icons/TooltipIcon';
@@ -15,6 +15,7 @@ interface PatientManagementProps {
   onViewFinancials: (patientId: string) => void;
   patients: Patient[];
   setPatients: React.Dispatch<React.SetStateAction<Patient[]>>;
+  appointments: Appointment[];
 }
 
 const Tooltip: React.FC<{ text: string }> = ({ text }) => (
@@ -31,7 +32,7 @@ const initialFormData = {
     emergencyContactName: '', emergencyContactPhone: ''
 };
 
-const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onViewPEP, onViewFinancials, patients, setPatients }) => {
+const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onViewPEP, onViewFinancials, patients, setPatients, appointments }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
@@ -155,6 +156,10 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
   const displayedPatients = useMemo(() => 
     patients.filter(p => showInactive ? true : p.isActive)
   , [patients, showInactive]);
+
+  const patientHasAppointments = (patientId: string) => {
+    return appointments.some(app => app.patientId === patientId);
+  };
 
   return (
     <ModuleContainer title="Gestão de Pacientes" onBack={() => onNavigate('dashboard')}>
@@ -296,7 +301,9 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
             </tr>
           </thead>
           <tbody className="text-slate-700">
-            {displayedPatients.map((patient) => (
+            {displayedPatients.map((patient) => {
+              const hasAppointments = patientHasAppointments(patient.id);
+              return (
               <tr 
                 key={patient.id} 
                 className={`border-b border-slate-200 hover:bg-slate-50 cursor-pointer ${!patient.isActive ? 'bg-slate-100 text-slate-500' : ''}`}
@@ -308,8 +315,15 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                 <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-center gap-4">
                     <div className="group relative">
-                      <button onClick={() => onViewPEP(patient.id)} className="p-1 text-indigo-600 hover:text-indigo-800" aria-label={`Ver prontuário de ${patient.name}`}><FileTextIcon /></button>
-                      <Tooltip text="Ver Prontuário" />
+                      <button 
+                        onClick={() => onViewPEP(patient.id)} 
+                        className={`p-1 ${hasAppointments ? 'text-indigo-600 hover:text-indigo-800' : 'text-slate-400 cursor-not-allowed'}`}
+                        aria-label={`Ver prontuário de ${patient.name}`}
+                        disabled={!hasAppointments}
+                      >
+                        <FileTextIcon />
+                      </button>
+                      <Tooltip text={hasAppointments ? 'Ver Prontuário' : 'Nenhuma consulta registrada'} />
                     </div>
                     <div className="group relative">
                       <button onClick={() => onViewFinancials(patient.id)} className="p-1 text-emerald-600 hover:text-emerald-800" aria-label={`Ver financeiro de ${patient.name}`}><MoneyIcon /></button>
@@ -328,7 +342,8 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
              {displayedPatients.length === 0 && (
                 <tr>
                     <td colSpan={5} className="text-center py-10 text-slate-500">Nenhum paciente encontrado.</td>

@@ -45,6 +45,7 @@ export interface SessionNote {
   patientId: string;
   date: string;
   content: string;
+  appointmentId?: string;
 }
 
 export interface InternalObservation {
@@ -63,4 +64,4 @@ export interface Transaction {
   patientId?: string;
 }
 
-export type View = 'dashboard' | 'patients' | 'schedule' | 'pep' | 'financial' | 'admin' | 'managementDashboard' | 'settings';
+export type View = 'dashboard' | 'patients' | 'schedule' | 'pep' | 'financial' | 'admin' | 'managementDashboard' | 'settings' | 'recordsHistory';

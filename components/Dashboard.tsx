@@ -93,10 +93,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, onViewP
         />
         <Card
           title="Prontuário Eletrônico"
-          description="Acesse o histórico e notas de sessão (via Pacientes)"
+          description="Acesse o histórico central de anotações clínicas"
           icon={<FileTextIcon />}
-          onClick={() => onNavigate('patients')}
-          isActionable={false}
+          onClick={() => onNavigate('recordsHistory')}
+          isActionable={true}
         />
         <Card
           title="Financeiro"

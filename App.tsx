@@ -18,6 +18,7 @@ import TodayAppointmentsModal from './components/TodayAppointmentsModal';
 import MyDayModal from './components/MyDayModal';
 import MyDayIcon from './components/icons/MyDayIcon';
 import { getTodayString } from './utils/formatting';
+import RecordsHistory from './components/RecordsHistory';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -95,7 +96,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeView) {
       case 'patients':
-        return <PatientManagement onNavigate={navigateTo} onViewPEP={viewPatientPEP} onViewFinancials={handleViewPatientFinancials} patients={patients} setPatients={setPatients} />;
+        return <PatientManagement onNavigate={navigateTo} onViewPEP={viewPatientPEP} onViewFinancials={handleViewPatientFinancials} patients={patients} setPatients={setPatients} appointments={appointments} />;
       case 'schedule':
         return <AppointmentScheduler 
                   onNavigate={navigateTo} 
@@ -139,6 +140,8 @@ const App: React.FC = () => {
                 />;
       case 'managementDashboard':
         return <ManagementDashboard onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
+      case 'recordsHistory':
+        return <RecordsHistory onNavigate={navigateTo} notes={notes} patients={patients} onViewPEP={viewPatientPEP} />;
       case 'dashboard':
       default:
         return <Dashboard onNavigate={navigateTo} onViewPEP={viewPatientPEP} appointments={appointments} />;
