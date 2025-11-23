@@ -1,60 +1,66 @@
+
 import React, { useMemo, useState } from 'react';
-import { View, SessionNote, Patient } from '../types';
+import { View, SessionNote, Patient, Appointment } from '../types';
 import ModuleContainer from './ModuleContainer';
 
 interface RecordsHistoryProps {
   onNavigate: (view: View) => void;
-  notes: SessionNote[];
+  notes: SessionNote[]; // Kept for prop compatibility
+  appointments: Appointment[];
   patients: Patient[];
-  onViewPEP: (patientId: string) => void;
+  onViewPEP: (patientId: string, isConsultation: boolean, showStartButton?: boolean) => void;
 }
 
-const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, patients, onViewPEP }) => {
+const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, appointments, patients, onViewPEP }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
 
   const patientRecords = useMemo(() => {
-    // Create a map of patientId -> latest note date
-    const latestNotesMap = new Map<string, string>();
-    notes.forEach(note => {
-        const existingDate = latestNotesMap.get(note.patientId);
-        if (!existingDate || new Date(note.date) > new Date(existingDate)) {
-            latestNotesMap.set(note.patientId, note.date);
+    // 1. Filter ONLY completed appointments
+    const completedAppointments = appointments.filter(app => app.status === 'completed');
+
+    // 2. Create a map of patientId -> latest completed appointment date
+    const latestCompletedAppointmentDateMap = new Map<string, string>();
+    
+    completedAppointments.forEach(app => {
+        const existingDate = latestCompletedAppointmentDateMap.get(app.patientId);
+        if (!existingDate || new Date(app.date) > new Date(existingDate)) {
+            latestCompletedAppointmentDateMap.set(app.patientId, app.date);
         }
     });
 
-    // Map patients to records, including the latest note date
+    // 3. Map patients to records
     let records = patients
-        .filter(patient => latestNotesMap.has(patient.id)) // Only patients with notes
+        .filter(patient => latestCompletedAppointmentDateMap.has(patient.id))
         .map(patient => ({
             patientId: patient.id,
             patientName: patient.name,
-            lastNoteDate: latestNotesMap.get(patient.id)!
+            lastCompletedAppointmentDate: latestCompletedAppointmentDateMap.get(patient.id)!
         }));
 
-    // Apply search term filter
+    // 4. Apply search term filter
     if (searchTerm) {
         records = records.filter(record =>
             record.patientName.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }
 
-    // Apply date filter (check if ANY note for that patient was on that date)
+    // 5. Apply date filter
     if (filterDate) {
         const patientIdsOnDate = new Set(
-            notes.filter(note => note.date.startsWith(filterDate)).map(note => note.patientId)
+            completedAppointments.filter(app => app.date === filterDate).map(app => app.patientId)
         );
         records = records.filter(record => patientIdsOnDate.has(record.patientId));
     }
 
-    // Sort by most recent note date
-    return records.sort((a, b) => new Date(b.lastNoteDate).getTime() - new Date(a.lastNoteDate).getTime());
-  }, [notes, patients, searchTerm, filterDate]);
+    // 6. Sort by most recent
+    return records.sort((a, b) => new Date(b.lastCompletedAppointmentDate).getTime() - new Date(a.lastCompletedAppointmentDate).getTime());
+  }, [appointments, patients, searchTerm, filterDate]);
 
   return (
-    <ModuleContainer title="Histórico de Prontuários" onBack={() => onNavigate('dashboard')}>
+    <ModuleContainer title="Histórico de Consultas Finalizadas" onBack={() => onNavigate('dashboard')}>
       <p className="text-slate-500 mb-6">
-        Pesquise no histórico clínico de todos os pacientes. Encontre um paciente por nome ou data de registro para acessar o prontuário completo.
+        Pesquise no histórico de consultas finalizadas. Encontre um paciente por nome ou data da última consulta finalizada para acessar o prontuário completo.
       </p>
       
       <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
@@ -87,7 +93,7 @@ const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, pati
         <table className="min-w-full bg-white border border-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600">Data do Último Registro</th>
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600">Data da Última Consulta</th>
               <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600">Paciente</th>
               <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600">Ação</th>
             </tr>
@@ -96,12 +102,12 @@ const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, pati
             {patientRecords.length > 0 ? patientRecords.map(record => (
               <tr key={record.patientId} className="border-b border-slate-200 hover:bg-slate-50">
                 <td className="py-3 px-4 text-sm">
-                  {new Date(record.lastNoteDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                  {new Date(record.lastCompletedAppointmentDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' })}
                 </td>
                 <td className="py-3 px-4 font-medium">{record.patientName}</td>
                 <td className="py-3 px-4">
                   <button
-                    onClick={() => onViewPEP(record.patientId)}
+                    onClick={() => onViewPEP(record.patientId, false, false)} // FORCE FALSE here
                     className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-semibold hover:bg-indigo-200"
                   >
                     Acessar PEP
@@ -111,7 +117,7 @@ const RecordsHistory: React.FC<RecordsHistoryProps> = ({ onNavigate, notes, pati
             )) : (
               <tr>
                 <td colSpan={3} className="text-center py-10 text-slate-500">
-                  Nenhum registro clínico encontrado para os filtros aplicados.
+                  Nenhuma consulta finalizada encontrada para os filtros aplicados.
                 </td>
               </tr>
             )}

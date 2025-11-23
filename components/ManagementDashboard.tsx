@@ -34,7 +34,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 );
 
 
-const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, patients, appointments, transactions }) => {
+export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, patients, appointments, transactions }) => {
     
     const kpis = useMemo(() => {
         const today = new Date();
@@ -43,14 +43,19 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
 
         const revenueThisMonth = transactions
             .filter(t => {
-                const tDate = new Date(t.date);
-                return t.type === 'income' && tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear;
+                // Treat date as string to avoid timezone issues (YYYY-MM-DD)
+                const tDateParts = t.date.split('-');
+                const tYear = parseInt(tDateParts[0]);
+                const tMonth = parseInt(tDateParts[1]) - 1; // Month is 0-indexed
+                return t.type === 'income' && tMonth === currentMonth && tYear === currentYear;
             })
             .reduce((sum, t) => sum + t.amount, 0);
         
         const appointmentsThisMonth = appointments.filter(app => {
-            const appDate = new Date(app.date);
-            return appDate.getMonth() === currentMonth && appDate.getFullYear() === currentYear && app.status !== 'canceled';
+            const appDateParts = app.date.split('-');
+            const appYear = parseInt(appDateParts[0]);
+            const appMonth = parseInt(appDateParts[1]) - 1;
+            return appMonth === currentMonth && appYear === currentYear && app.status !== 'canceled';
         }).length;
 
         const weekdaysInMonth = Array.from({length: new Date(currentYear, currentMonth + 1, 0).getDate()}, (_, i) => new Date(currentYear, currentMonth, i + 1))
@@ -68,19 +73,31 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
     }, [patients, appointments, transactions]);
     
     const financialChartData = useMemo(() => {
-        const data = Array.from({ length: 6 }, (_, i) => {
-            const d = new Date();
-            d.setMonth(d.getMonth() - i);
-            return { month: d.toLocaleString('pt-BR', { month: 'short' }), income: 0, expense: 0 };
-        }).reverse();
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1)); // Start on Monday (1) or previous Monday if today is Sunday (0)
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const data = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+            return {
+                day: d.toLocaleDateString('pt-BR', { weekday: 'short' }),
+                fullDate: `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`,
+                income: 0,
+                expense: 0
+            };
+        });
 
         transactions.forEach(t => {
-            const tDate = new Date(t.date);
-            const monthStr = tDate.toLocaleString('pt-BR', { month: 'short' });
-            const monthData = data.find(d => d.month === monthStr);
-            if(monthData) {
-                if(t.type === 'income') monthData.income += t.amount;
-                else monthData.expense += t.amount;
+            // Extract YYYY-MM-DD part directly from string to ensure it matches the bucket keys
+            // This avoids timezone issues where new Date("2023-11-20") becomes previous day in Western Hemisphere timezones
+            const tDateString = t.date.substring(0, 10);
+            
+            const dayData = data.find(d => d.fullDate === tDateString);
+            if(dayData) {
+                if(t.type === 'income') dayData.income += t.amount;
+                else dayData.expense += t.amount;
             }
         });
         
@@ -111,15 +128,13 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                    <h3 className="text-lg font-semibold text-slate-700 mb-4">Visão Financeira (Últimos 6 meses)</h3>
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">Visão Financeira (Semana Atual)</h3>
                     <div className="flex justify-around items-end h-64 border-l border-b border-slate-200 pl-4 pb-1">
                         {financialChartData.data.map(d => (
-                            <div key={d.month} className="flex flex-col items-center w-1/6">
-                                <div className="flex items-end h-full w-full justify-center gap-2">
-                                    <div className="bg-indigo-500 w-6 rounded-t-sm" title={`Receita: ${d.income.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`} style={{height: `${(d.income / financialChartData.max) * 100}%`}}></div>
-                                    <div className="bg-rose-400 w-6 rounded-t-sm" title={`Despesa: ${d.expense.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`} style={{height: `${(d.expense / financialChartData.max) * 100}%`}}></div>
-                                </div>
-                                <p className="text-xs font-medium text-slate-500 mt-2 uppercase">{d.month}</p>
+                            <div key={d.fullDate} className="flex flex-col items-center flex-grow">
+                                <div className="bg-indigo-500 w-6 rounded-t-sm transition-all duration-500" title={`Receita: ${d.income.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`} style={{height: `${(d.income / financialChartData.max) * 100}%`}}></div>
+                                <div className="bg-rose-400 w-6 rounded-t-sm transition-all duration-500" title={`Despesa: ${d.expense.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`} style={{height: `${(d.expense / financialChartData.max) * 100}%`}}></div>
+                                <p className="text-xs font-medium text-slate-500 mt-2 uppercase">{d.day}</p>
                             </div>
                         ))}
                     </div>
@@ -127,22 +142,25 @@ const ManagementDashboard: React.FC<ManagementDashboardProps> = ({ onNavigate, p
 
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
                     <h3 className="text-lg font-semibold text-slate-700 mb-4">Próximas Consultas</h3>
-                    <div className="space-y-3">
-                        {upcomingAppointments.length > 0 ? upcomingAppointments.map(app => (
-                            <div key={app.id} className="flex justify-between items-center text-sm">
-                                <div>
-                                    <p className="font-semibold text-slate-800">{app.patientName}</p>
-                                    <p className="text-slate-500">{new Date(app.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', timeZone: 'UTC'})} - {app.time}</p>
+                    <div className="space-y-4">
+                        {upcomingAppointments.length > 0 ? (
+                            upcomingAppointments.map(app => (
+                                <div key={app.id} className="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                    <div>
+                                        <p className="font-medium text-slate-800">{app.patientName}</p>
+                                        <p className="text-xs text-slate-500">{new Date(app.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} às {app.time}</p>
+                                    </div>
+                                    <span className="text-xs font-semibold bg-violet-100 text-violet-700 px-2 py-1 rounded-full">
+                                        Agendada
+                                    </span>
                                 </div>
-                                <span className="bg-violet-100 text-violet-800 text-xs font-semibold px-2 py-1 rounded-full">Agendada</span>
-                            </div>
-                        )) : <p className="text-slate-500 text-sm text-center py-4">Nenhuma próxima consulta.</p>}
+                            ))
+                        ) : (
+                            <p className="text-slate-500 text-sm text-center py-4">Sem agendamentos futuros.</p>
+                        )}
                     </div>
                 </div>
             </div>
-            
         </ModuleContainer>
     );
 };
-
-export default ManagementDashboard;

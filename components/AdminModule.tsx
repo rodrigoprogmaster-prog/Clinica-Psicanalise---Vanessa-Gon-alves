@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Patient, Appointment, Transaction } from '../types';
 import ModuleContainer from './ModuleContainer';
+import { getTodayString } from '../utils/formatting';
 
 interface AdminModuleProps {
   onNavigate: (view: View) => void;
@@ -12,97 +13,65 @@ interface AdminModuleProps {
 
 const AdminModule: React.FC<AdminModuleProps> = ({ onNavigate, patients, appointments, transactions }) => {
 
-  // Attendance Report Calculations
-  const attendanceSummary = useMemo(() => {
-    const summary = new Map<string, { name: string, completed: number, canceled: number, scheduled: number }>();
-    appointments.forEach(app => {
-        if (!summary.has(app.patientId)) {
-            summary.set(app.patientId, { name: app.patientName, completed: 0, canceled: 0, scheduled: 0 });
-        }
-        const patientStat = summary.get(app.patientId)!;
-        patientStat[app.status]++;
-    });
-    return Array.from(summary.values()).sort((a,b) => a.name.localeCompare(b.name));
+  // Today's Appointments Report
+  const todaysAppointments = useMemo(() => {
+    const todayString = getTodayString();
+    return appointments
+      .filter(app => app.date === todayString)
+      .sort((a,b) => a.time.localeCompare(b.time));
   }, [appointments]);
 
-  // Occupancy Report Calculations
-  const occupancySummary = useMemo(() => {
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
-      
-      const appointmentsThisMonth = appointments.filter(app => {
-          const appDate = new Date(app.date);
-          return appDate.getMonth() === currentMonth && appDate.getFullYear() === currentYear && app.status !== 'canceled';
-      }).length;
-      
-      // Assuming 8 available slots per day, 5 days a week
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const weekdaysInMonth = Array.from({length: daysInMonth}, (_, i) => new Date(currentYear, currentMonth, i + 1))
-                                   .filter(date => date.getDay() !== 0 && date.getDay() !== 6).length;
-      const totalSlots = weekdaysInMonth * 8;
-      const occupancy = totalSlots > 0 ? (appointmentsThisMonth / totalSlots) * 100 : 0;
+  const scheduledToday = useMemo(() => todaysAppointments.filter(app => app.status === 'scheduled'), [todaysAppointments]);
+  const completedToday = useMemo(() => todaysAppointments.filter(app => app.status === 'completed'), [todaysAppointments]);
+  const canceledToday = useMemo(() => todaysAppointments.filter(app => app.status === 'canceled'), [todaysAppointments]);
 
-      return {
-          appointmentsThisMonth,
-          totalSlots,
-          occupancy: occupancy.toFixed(1)
-      }
-  }, [appointments]);
+  const statusClasses = { scheduled: 'bg-violet-100 text-violet-800', completed: 'bg-emerald-100 text-emerald-800', canceled: 'bg-rose-100 text-rose-800' };
+  const statusLabels = { scheduled: 'Agendada', completed: 'Realizada', canceled: 'Cancelada' }
+
 
   return (
     <ModuleContainer title="Módulo Administrativo" onBack={() => onNavigate('dashboard')}>
       <div className="space-y-8">
-        {/* Reports Section */}
+        {/* New Section: Serviços do Dia */}
         <section>
-          <h2 className="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">Relatórios</h2>
-          <div className="space-y-6 mt-4">
-
-            {/* Attendance Report Card */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-              <h3 className="text-lg font-semibold text-slate-700 mb-4">Relatório de Atendimentos por Paciente</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="text-left py-2 px-3 text-slate-600">Paciente</th>
-                      <th className="text-center py-2 px-3 text-slate-600">Realizadas</th>
-                      <th className="text-center py-2 px-3 text-slate-600">Canceladas</th>
-                      <th className="text-center py-2 px-3 text-slate-600">Agendadas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceSummary.length > 0 ? attendanceSummary.map(p => (
-                      <tr key={p.name} className="border-b">
-                        <td className="py-2 px-3 font-medium">{p.name}</td>
-                        <td className="py-2 px-3 text-center text-emerald-600 font-semibold">{p.completed}</td>
-                        <td className="py-2 px-3 text-center text-rose-600 font-semibold">{p.canceled}</td>
-                        <td className="py-2 px-3 text-center text-violet-600 font-semibold">{p.scheduled}</td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={4} className="text-center py-10 text-slate-500">Nenhum dado de atendimento encontrado.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">Serviços do Dia</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+              <h4 className="text-sm font-semibold text-violet-800">Agendadas</h4>
+              <p className="text-2xl font-bold text-violet-900">{scheduledToday.length}</p>
             </div>
-
-            {/* Occupancy Report Card */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border animate-fade-in">
-              <h3 className="text-lg font-semibold text-slate-700 mb-4">Relatório de Ocupação da Agenda (Mês Atual)</h3>
-              <div className="bg-slate-50 border p-6 rounded-lg flex flex-col items-center">
-                  <p className="text-4xl font-bold text-indigo-600">{occupancySummary.occupancy}%</p>
-                  <p className="text-slate-500 mt-1">de ocupação</p>
-                  <div className="w-full bg-slate-200 rounded-full h-4 mt-4">
-                      <div className="bg-indigo-500 h-4 rounded-full" style={{width: `${occupancySummary.occupancy}%`}}></div>
-                  </div>
-                  <p className="text-sm text-slate-600 mt-2">{occupancySummary.appointmentsThisMonth} de {occupancySummary.totalSlots} horários preenchidos.</p>
-              </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+              <h4 className="text-sm font-semibold text-emerald-800">Realizadas</h4>
+              <p className="text-2xl font-bold text-emerald-900">{completedToday.length}</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+              <h4 className="text-sm font-semibold text-rose-800">Canceladas</h4>
+              <p className="text-2xl font-bold text-rose-900">{canceledToday.length}</p>
             </div>
           </div>
-        </section>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <h3 className="text-lg font-semibold text-slate-700 mb-4">Detalhes das Consultas de Hoje</h3>
+            <div className="max-h-60 overflow-y-auto pr-2 space-y-3">
+              {todaysAppointments.length > 0 ? (
+                todaysAppointments.map(app => (
+                  <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-slate-700">{app.patientName}</p>
+                      <p className="text-sm text-slate-500">Horário: {app.time}</p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[app.status]}`}>
+                      {statusLabels[app.status]}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-500 text-center py-4">Nenhuma consulta agendada para hoje.</p>
+              )}
+            </div>
+          </div>
+        </section> {/* End Serviços do Dia Section */}
+
       </div>
     </ModuleContainer>
   );

@@ -31,7 +31,7 @@ const MyDayModal: React.FC<MyDayModalProps> = ({ onClose, appointments }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
       onClick={onClose}
     >
       <div 
@@ -84,7 +84,7 @@ const MyDayModal: React.FC<MyDayModalProps> = ({ onClose, appointments }) => {
             </section>
         </div>
         <div className="flex justify-end mt-6 pt-4 border-t">
-          <button onClick={onClose} className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700">Fechar</button>
         </div>
       </div>
     </div>

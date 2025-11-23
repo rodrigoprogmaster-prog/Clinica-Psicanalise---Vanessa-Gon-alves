@@ -1,8 +1,9 @@
+
 import React from 'react';
 
 interface CardProps {
   title: string;
-  description: string;
+  description?: string;
   icon: React.ReactNode;
   onClick: () => void;
   isActionable?: boolean;
@@ -21,12 +22,14 @@ const Card: React.FC<CardProps> = ({ title, description, icon, isActionable = tr
       <div className={`mb-4 p-3 rounded-full ${isActionable ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
         {icon}
       </div>
-      <h3 className={`text-xl font-bold mb-2 ${isActionable ? 'text-slate-800' : 'text-slate-500'}`}>
+      <h3 className={`text-xl font-bold ${description ? 'mb-2' : 'mb-0'} ${isActionable ? 'text-slate-800' : 'text-slate-500'}`}>
         {title}
       </h3>
-      <p className="text-slate-500 text-sm">
-        {description}
-      </p>
+      {description && (
+        <p className="text-slate-500 text-sm">
+          {description}
+        </p>
+      )}
     </div>
   );
 };

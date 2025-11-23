@@ -1,63 +1,252 @@
 
-import React, { useState } from 'react';
-import { View, Appointment, Patient, ConsultationType, Transaction } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Appointment, Patient, ConsultationType, Transaction, NotificationLog } from '../types';
 import ModuleContainer from './ModuleContainer';
+import SendIcon from './icons/SendIcon';
+import Skeleton from './Skeleton';
+import PlayIcon from './icons/PlayIcon';
+import CalendarModal from './CalendarModal'; 
+import ScheduleAppointmentModal from './ScheduleAppointmentModal';
+import CalendarEditIcon from './icons/CalendarEditIcon';
+import CalendarViewIcon from './icons/CalendarViewIcon';
+import AppointmentConfirmationModal from './AppointmentConfirmationModal';
+import RefreshIcon from './icons/RefreshIcon';
+import WhatsAppModal from './WhatsAppModal';
+import FileTextIcon from './icons/FileTextIcon';
+import { getTodayString, getTomorrowString } from '../utils/formatting';
+
+
+const Tooltip: React.FC<{ text: string }> = ({ text }) => (
+  <span className="absolute right-0 bottom-full mb-2 w-max max-w-xs p-2 text-xs text-white bg-slate-700 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
+    {text}
+    <svg className="absolute text-slate-700 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255">
+      <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
+    </svg>
+  </span>
+);
 
 interface AppointmentSchedulerProps {
     onNavigate: (view: View) => void;
+    onViewPEP: (patientId: string, isConsultation?: boolean, showStartButton?: boolean) => void;
     patients: Patient[];
     appointments: Appointment[];
     setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
     consultationTypes: ConsultationType[];
     setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+    notificationLogs: NotificationLog[];
+    setNotificationLogs: React.Dispatch<React.SetStateAction<NotificationLog[]>>;
+    onLogAction: (action: string, details: string) => void;
+    onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate, patients, appointments, setAppointments, consultationTypes, setTransactions }) => {
+const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ 
+    onNavigate, 
+    onViewPEP,
+    patients, 
+    appointments, 
+    setAppointments, 
+    consultationTypes, 
+    setTransactions,
+    notificationLogs,
+    setNotificationLogs,
+    onLogAction,
+    onShowToast
+}) => {
   const [modalState, setModalState] = useState<{ appointment: Appointment; action: 'completed' | 'canceled' } | null>(null);
-  const [newAppointment, setNewAppointment] = useState({ patientId: '', date: '', time: '', consultationTypeId: '' });
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isCalendarViewModalOpen, setIsCalendarViewModalOpen] = useState(false);
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
+  const [newlyScheduledAppointment, setNewlyScheduledAppointment] = useState<Appointment | null>(null);
   const [formError, setFormError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSendingReminderFromConfirmation, setIsSendingReminderFromConfirmation] = useState(false);
+  
+  const [patientFilter, setPatientFilter] = useState<string>('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setNewAppointment(prev => ({ ...prev, [name]: value }));
+  // Reschedule State
+  const [reschedulingAppointment, setReschedulingAppointment] = useState<Appointment | null>(null);
+  const [pendingRescheduleData, setPendingRescheduleData] = useState<{ date: string; time: string } | null>(null);
+
+  // WhatsApp Modal State
+  const [whatsappModalData, setWhatsappModalData] = useState<{ isOpen: boolean, patientName: string, phone: string, message: string, appointmentId: string } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSaveAppointment = (appointmentData: { patientId: string; date: string; time: string; consultationTypeId: string }) => {
+    if (reschedulingAppointment) {
+        // Phase 1 of Reschedule: Capture data and show confirmation
+        setPendingRescheduleData({ date: appointmentData.date, time: appointmentData.time });
+        setIsScheduleModalOpen(false); // Close the form
+    } else {
+        // New Appointment Logic
+        const patient = patients.find(p => p.id === appointmentData.patientId);
+        const consultationType = consultationTypes.find(ct => ct.id === appointmentData.consultationTypeId);
+        if (!patient || !consultationType) {
+          setFormError('Paciente ou tipo de consulta inválido.');
+          return;
+        }
+        const appointment: Appointment = {
+          id: `app${Date.now()}`,
+          patientId: appointmentData.patientId,
+          patientName: patient.name,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          status: 'scheduled',
+          consultationTypeId: appointmentData.consultationTypeId,
+          price: consultationType.price,
+          reminderSent: false,
+        };
+        setAppointments(prev => [...prev, appointment]);
+        setFormError('');
+        setIsScheduleModalOpen(false);
+
+        onLogAction('Agendamento Criado', `Paciente: ${appointment.patientName}, Data: ${appointment.date}, Hora: ${appointment.time}`);
+        onShowToast('Consulta agendada com sucesso!', 'success');
+
+        setNewlyScheduledAppointment(appointment);
+        setIsConfirmationModalOpen(true);
+    }
   };
 
-  const handleAddAppointment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAppointment.patientId || !newAppointment.date || !newAppointment.time || !newAppointment.consultationTypeId) {
-      setFormError('Todos os campos são obrigatórios.');
-      return;
-    }
-    const patient = patients.find(p => p.id === newAppointment.patientId);
-    const consultationType = consultationTypes.find(ct => ct.id === newAppointment.consultationTypeId);
-    if (!patient || !consultationType) {
-      setFormError('Paciente ou tipo de consulta inválido.');
-      return;
-    }
-    
-    const appointment: Appointment = {
-      id: `app${Date.now()}`,
-      patientId: newAppointment.patientId,
-      patientName: patient.name,
-      date: newAppointment.date,
-      time: newAppointment.time,
-      status: 'scheduled',
-      consultationTypeId: newAppointment.consultationTypeId,
-      price: consultationType.price,
-    };
-    
-    setAppointments(prev => [...prev, appointment]);
-    setNewAppointment({ patientId: '', date: '', time: '', consultationTypeId: '' });
-    setFormError('');
+  const handleConfirmReschedule = () => {
+      if (reschedulingAppointment && pendingRescheduleData) {
+          const oldDate = reschedulingAppointment.date;
+          const oldTime = reschedulingAppointment.time;
+
+          setAppointments(prev => prev.map(app => 
+              app.id === reschedulingAppointment.id 
+                  ? { ...app, date: pendingRescheduleData.date, time: pendingRescheduleData.time, reminderSent: false } // Reset reminder sent
+                  : app
+          ));
+
+          onLogAction('Consulta Reagendada', `Paciente: ${reschedulingAppointment.patientName}. De: ${oldDate} ${oldTime} Para: ${pendingRescheduleData.date} ${pendingRescheduleData.time}`);
+          onShowToast('Consulta reagendada com sucesso!', 'success');
+
+          // Reset state
+          setReschedulingAppointment(null);
+          setPendingRescheduleData(null);
+      }
   };
+
+  const handleCancelReschedule = () => {
+      setReschedulingAppointment(null);
+      setPendingRescheduleData(null);
+      setIsScheduleModalOpen(false);
+  };
+
+  const initiateReschedule = (appointment: Appointment) => {
+      setReschedulingAppointment(appointment);
+      setIsScheduleModalOpen(true);
+  };
+
 
   const handleUpdateStatus = (id: string, status: 'completed' | 'canceled') => {
+    const app = appointments.find(a => a.id === id);
     setAppointments(prevAppointments =>
-      prevAppointments.map(app =>
-        app.id === id ? { ...app, status } : app
+      prevAppointments.map(a =>
+        a.id === id ? { ...a, status } : a
       )
     );
+    if(app) {
+        const actionText = status === 'completed' ? 'Consulta Finalizada' : 'Consulta Cancelada';
+        onLogAction(actionText, `Paciente: ${app.patientName}, Data: ${app.date}, Hora: ${app.time}`);
+        onShowToast(actionText, 'success');
+    }
   };
+
+  const prepareWhatsAppReminder = (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) return;
+    const patient = patients.find(p => p.id === appointment.patientId);
+    if (!patient) return;
+
+    const phoneClean = patient.phone.replace(/\D/g, '');
+    const hasPhone = phoneClean.length >= 10;
+
+    if (!hasPhone) {
+        onShowToast(`Erro: Paciente ${patient.name} não possui um número de WhatsApp válido.`, 'error');
+        return;
+    }
+
+    const [year, month, day] = appointment.date.split('-');
+    const formattedDate = `${day}/${month}/${year}`;
+    
+    const todayStr = getTodayString();
+    const tomorrowStr = getTomorrowString();
+    
+    let timeContext = '';
+    if (appointment.date === todayStr) {
+        timeContext = 'hoje, ';
+    } else if (appointment.date === tomorrowStr) {
+        timeContext = 'amanhã, ';
+    }
+
+    const message = `Olá ${patient.name}, lembrete da sua consulta agendada para ${timeContext}dia ${formattedDate} às ${appointment.time}. Clínica Vanessa Gonçalves.`;
+
+    setWhatsappModalData({
+        isOpen: true,
+        patientName: patient.name,
+        phone: patient.phone,
+        message: message,
+        appointmentId: appointmentId
+    });
+  };
+
+  // Callback called when WhatsApp modal closes (user either sent or canceled)
+  const handleWhatsAppClose = () => {
+      if (whatsappModalData) {
+          // We assume if the user opened the modal, they likely sent it or at least tried.
+          // For better UX, we mark as sent to avoid nags, or we could add a specific "Did you send?" confirmation.
+          // Here, we simply mark it as "processed" in logs if they clicked "Open WhatsApp" inside the modal.
+          // But since the modal opens a new tab, we can't know for sure.
+          // Let's just add a log entry when the modal is closed if we want to be loose, 
+          // OR we can add the log inside the modal's "Open" action. 
+          // Let's assume the log is added when they click "Open WhatsApp" in the modal? 
+          // Actually, the modal is generic. Let's add the log here if we assume success.
+          // A safer bet is to NOT mark as sent automatically unless we are sure.
+          // However, to update the UI "Reminder Sent", let's do it when the modal opened.
+          
+          // Actually, let's leave the log logic to the 'Simulated' send or just update state here.
+          // Since we can't callback from window.open easily in the child, let's just update local state here
+          // assuming they followed through.
+          const { appointmentId, patientName, message } = whatsappModalData;
+          
+          setAppointments(prev => prev.map(app => app.id === appointmentId ? { ...app, reminderSent: true } : app));
+          const logEntry: NotificationLog = {
+              id: `log${Date.now()}`,
+              date: new Date().toISOString(),
+              patientName: patientName,
+              type: 'sms',
+              status: 'sent',
+              details: `Enviado via WhatsApp. Msg: "${message}"`
+          };
+          setNotificationLogs(prev => [logEntry, ...prev]);
+          
+          setWhatsappModalData(null);
+          
+          // If coming from confirmation modal
+          if (isSendingReminderFromConfirmation) {
+              setIsConfirmationModalOpen(false);
+              setNewlyScheduledAppointment(null);
+              setIsSendingReminderFromConfirmation(false);
+          }
+      }
+  };
+
+  const handleSendReminderAndCloseConfirmation = (appointmentId: string) => {
+    setIsSendingReminderFromConfirmation(true);
+    prepareWhatsAppReminder(appointmentId);
+  };
+
+  const handleCloseConfirmationModal = () => {
+    setIsConfirmationModalOpen(false);
+    setNewlyScheduledAppointment(null);
+    setIsSendingReminderFromConfirmation(false);
+  };
+
 
   const handleConfirmAction = () => {
     if (modalState) {
@@ -70,43 +259,168 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate,
               date: modalState.appointment.date,
               patientId: modalState.appointment.patientId,
           };
-          setTransactions(prev => [newTransaction, ...prev]);
+          setTransactions(prev => [...prev, newTransaction]);
+          onLogAction('Transação Automática', `Gerada ao finalizar consulta de ${modalState.appointment.patientName}: R$ ${modalState.appointment.price}`);
       }
       handleUpdateStatus(modalState.appointment.id, modalState.action);
       setModalState(null);
     }
   };
 
-  const handleCancelAction = () => {
-    setModalState(null);
-  };
+  const handleCancelAction = () => { setModalState(null); };
 
-  const statusClasses = {
-    scheduled: 'bg-violet-100 text-violet-800',
-    completed: 'bg-emerald-100 text-emerald-800',
-    canceled: 'bg-rose-100 text-rose-800'
-  };
+  const statusClasses = { scheduled: 'bg-violet-100 text-violet-800', completed: 'bg-emerald-100 text-emerald-800', canceled: 'bg-rose-100 text-rose-800' };
+  const statusLabels = { scheduled: 'Agendada', completed: 'Realizada', canceled: 'Cancelada' }
 
-  const statusLabels = {
-    scheduled: 'Agendada',
-    completed: 'Realizada',
-    canceled: 'Cancelada'
-  }
+  const filteredAppointments = useMemo(() => {
+    if (!patientFilter) return appointments;
+    return appointments.filter(app => app.patientId === patientFilter);
+  }, [appointments, patientFilter]);
 
-  const scheduledAppointments = appointments
-    .filter(a => a.status === 'scheduled')
-    .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
-
-  const pastAppointments = appointments
-    .filter(a => a.status === 'completed' || a.status === 'canceled')
-    .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
-
-  const activePatients = patients.filter(p => p.isActive);
+  const scheduledAppointments = filteredAppointments.filter(a => a.status === 'scheduled').sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${a.time}`).getTime());
+  const pastAppointments = filteredAppointments.filter(a => a.status === 'completed' || a.status === 'canceled').sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+  
+  const moduleActions = (
+    <div className="flex items-center gap-3">
+      <button 
+        onClick={() => setIsCalendarViewModalOpen(true)} 
+        className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-full hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+      >
+        <CalendarViewIcon />
+        Calendário
+      </button>
+      <button 
+        onClick={() => {
+            setReschedulingAppointment(null); // Ensure clean state for new appointment
+            setIsScheduleModalOpen(true);
+        }} 
+        className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm"
+      >
+        <CalendarEditIcon />
+        Nova Consulta
+      </button>
+    </div>
+  );
 
   return (
-    <ModuleContainer title="Agenda de Consultas" onBack={() => onNavigate('dashboard')}>
+    <ModuleContainer title="Agendamento de Consultas" onBack={() => onNavigate('dashboard')} actions={moduleActions}>
+      
+      {/* WhatsApp Preview Modal */}
+      {whatsappModalData && (
+          <WhatsAppModal 
+            isOpen={whatsappModalData.isOpen}
+            onClose={handleWhatsAppClose}
+            patientName={whatsappModalData.patientName}
+            phone={whatsappModalData.phone}
+            message={whatsappModalData.message}
+          />
+      )}
+
+      <CalendarModal 
+        isOpen={isCalendarViewModalOpen}
+        onClose={() => setIsCalendarViewModalOpen(false)}
+        appointments={appointments}
+        onViewPEP={onViewPEP}
+      />
+
+      <ScheduleAppointmentModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => {
+            setIsScheduleModalOpen(false);
+            setReschedulingAppointment(null); // Reset if closed without saving
+        }}
+        patients={patients}
+        appointments={appointments}
+        consultationTypes={consultationTypes}
+        onSaveAppointment={handleSaveAppointment}
+        formError={formError}
+        setFormError={setFormError}
+        appointmentToReschedule={reschedulingAppointment}
+      />
+
+      {/* Reschedule Confirmation Modal */}
+      {pendingRescheduleData && reschedulingAppointment && (
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[60] animate-fade-in">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Confirmar Reagendamento</h3>
+                
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mb-6 text-sm">
+                    <p className="text-slate-500 mb-1">Paciente: <span className="font-semibold text-slate-800">{reschedulingAppointment.patientName}</span></p>
+                    
+                    <div className="flex items-center justify-between mt-4">
+                        <div className="text-center">
+                            <p className="text-xs font-semibold text-rose-500 uppercase mb-1">De</p>
+                            <p className="font-medium text-slate-700">{new Date(reschedulingAppointment.date).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</p>
+                            <p className="text-slate-600">{reschedulingAppointment.time}</p>
+                        </div>
+                        <div className="text-slate-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-semibold text-emerald-500 uppercase mb-1">Para</p>
+                            <p className="font-medium text-slate-700">{new Date(pendingRescheduleData.date).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</p>
+                            <p className="text-slate-600">{pendingRescheduleData.time}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button onClick={handleCancelReschedule} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Cancelar</button>
+                    <button onClick={handleConfirmReschedule} className="px-4 py-2 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm">Sim, Confirmar</button>
+                </div>
+            </div>
+          </div>
+      )}
+
+      {isConfirmationModalOpen && newlyScheduledAppointment && (
+        <AppointmentConfirmationModal
+          isOpen={isConfirmationModalOpen}
+          onClose={handleCloseConfirmationModal}
+          appointment={newlyScheduledAppointment}
+          onSendReminder={handleSendReminderAndCloseConfirmation}
+          isSendingReminder={isSendingReminderFromConfirmation}
+        />
+      )}
+
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex-grow w-full sm:w-auto">
+              <label htmlFor="patientFilter" className="block text-sm font-medium text-slate-700 mb-1">
+                  Filtrar por Paciente
+              </label>
+              <select
+                  id="patientFilter"
+                  value={patientFilter}
+                  onChange={(e) => setPatientFilter(e.target.value)}
+                  className="w-full p-2 border rounded-md bg-slate-50 border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+              >
+                  <option value="">Mostrar Todos</option>
+                  {patients
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(patient => (
+                          <option key={patient.id} value={patient.id}>
+                              {patient.name}
+                          </option>
+                      ))
+                  }
+              </select>
+          </div>
+          {patientFilter && (
+              <button
+                  onClick={() => setPatientFilter('')}
+                  className="mt-6 sm:mt-0 text-sm text-indigo-600 hover:text-indigo-800 font-medium underline whitespace-nowrap"
+              >
+                  Limpar Filtro
+              </button>
+          )}
+      </div>
+
+       <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-6 rounded-md text-sm flex items-start gap-2">
+            <div className="font-bold">Nota:</div>
+            <div>O sistema utiliza o WhatsApp Web para envio de lembretes.</div>
+      </div>
+
       {modalState && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 animate-fade-in" onClick={handleCancelAction}>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 animate-fade-in">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-slate-800">Confirmar Ação</h3>
             <p className="my-4 text-slate-600">
@@ -117,107 +431,95 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ onNavigate,
               {modalState.action === 'completed' && <span className="block text-sm mt-2">Isso irá gerar uma receita de <span className="font-bold">{modalState.appointment.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>.</span>}
             </p>
             <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={handleCancelAction}
-                className="px-4 py-2 rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={handleConfirmAction}
-                className={`px-4 py-2 rounded-md text-white transition-colors ${
-                  modalState.action === 'completed'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-rose-600 hover:bg-rose-700'
-                }`}
-              >
-                Sim, confirmar
-              </button>
+              <button onClick={handleCancelAction} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Voltar</button>
+              <button onClick={handleConfirmAction} className={`px-4 py-2 rounded-full text-white transition-colors ${modalState.action === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}>Sim, confirmar</button>
             </div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card Agendar Nova Consulta */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold mb-4 text-slate-700">Agendar Nova Consulta</h3>
-            <form onSubmit={handleAddAppointment} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Paciente</label>
-                    <select name="patientId" value={newAppointment.patientId} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white border-slate-300">
-                        <option value="">Selecione...</option>
-                        {activePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-              </div>
-               <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Tipo de Consulta</label>
-                    <select name="consultationTypeId" value={newAppointment.consultationTypeId} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white border-slate-300">
-                        <option value="">Selecione...</option>
-                        {consultationTypes.map(ct => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
-                    </select>
-                </div>
-                 <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Data</label>
-                    <input type="date" name="date" value={newAppointment.date} onChange={handleInputChange} className="w-full p-2 border rounded-md border-slate-300 bg-white" />
-                </div>
-              <div className="flex items-end gap-2">
-                 <div className="flex-grow">
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Horário</label>
-                    <input type="time" name="time" value={newAppointment.time} onChange={handleInputChange} className="w-full p-2 border rounded-md border-slate-300 bg-white" />
-                </div>
-                <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 h-10">Agendar</button>
-              </div>
-            </form>
-            {formError && <p className="text-red-500 text-sm mt-2">{formError}</p>}
-        </div>
 
-        {/* Card Próximas Consultas */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold mb-4 text-slate-700">Próximas Consultas</h3>
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                {scheduledAppointments.length > 0 ? scheduledAppointments.map(app => (
-                <div key={app.id} className="bg-slate-50 p-4 rounded-md border border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center">
+        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-lg font-semibold mb-4 text-slate-700">
+              {patientFilter ? `Próximas Consultas (${scheduledAppointments.length})` : 'Próximas Consultas'}
+            </h3>
+            <div className="space-y-4 pr-2">
+                {isLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="bg-slate-50 p-4 rounded-md border border-slate-200 flex justify-between items-center">
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  ))
+                ) : scheduledAppointments.length > 0 ? scheduledAppointments.map(app => (
+                <div key={app.id} className="bg-slate-50 p-4 rounded-md border border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="mb-3 sm:mb-0">
                     <p className="font-bold text-slate-800">{app.patientName}</p>
                     <p className="text-sm text-slate-500">{new Date(app.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {app.time}</p>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-center">
-                    <button
-                        onClick={() => setModalState({ appointment: app, action: 'completed' })}
-                        className="text-xs font-semibold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full hover:bg-emerald-200 transition-colors"
-                        aria-label={`Marcar consulta de ${app.patientName} como realizada`}
-                    >
-                        Realizada
-                    </button>
-                    <button
-                        onClick={() => setModalState({ appointment: app, action: 'canceled' })}
-                        className="text-xs font-semibold bg-rose-100 text-rose-800 px-3 py-1 rounded-full hover:bg-rose-200 transition-colors"
-                        aria-label={`Cancelar consulta de ${app.patientName}`}
-                    >
-                        Cancelar
-                    </button>
+                      <div className="group relative">
+                        <button 
+                          onClick={() => initiateReschedule(app)}
+                          className="text-xs font-semibold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full hover:bg-amber-200 transition-colors flex items-center gap-1"
+                          aria-label="Reagendar Consulta"
+                        >
+                          <RefreshIcon className="w-3.5 h-3.5" /> Reagendar
+                        </button>
+                        <Tooltip text="Alterar data/hora" />
+                      </div>
+                      
+                      <button
+                        onClick={() => prepareWhatsAppReminder(app.id)}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${
+                            app.reminderSent 
+                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                            : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
+                        }`}
+                        aria-label="Enviar Lembrete WhatsApp"
+                      >
+                          <SendIcon /> 
+                          {app.reminderSent ? 'Enviado' : 'Lembrete'}
+                      </button>
+
+                      <button onClick={() => setModalState({ appointment: app, action: 'canceled' })} className="text-xs font-semibold bg-rose-100 text-rose-800 px-3 py-1.5 rounded-full hover:bg-rose-200 transition-colors">Cancelar</button>
                     </div>
                 </div>
-                )) : <p className="text-slate-500 text-center py-4">Nenhuma consulta agendada.</p>}
+                )) : <p className="text-slate-500 text-center py-4">Nenhuma consulta agendada{patientFilter ? ' para este paciente' : ''}.</p>}
             </div>
         </div>
 
-        {/* Card Histórico de Consultas */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold mb-4 text-slate-700">Histórico de Consultas</h3>
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-            {pastAppointments.length > 0 ? pastAppointments.map(app => (
-                <div key={app.id} className="bg-slate-50 p-4 rounded-md border border-slate-200 flex flex-wrap justify-between items-center opacity-90">
+        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+            <h3 className="text-lg font-semibold mb-4 text-slate-700">
+              {patientFilter ? 'Histórico de Consultas do Paciente' : 'Histórico de Consultas'}
+            </h3>
+            <div className="space-y-4 pr-2">
+            {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <div key={i}><Skeleton className="h-8 w-full" /></div>)
+            ) : pastAppointments.length > 0 ? pastAppointments.map(app => (
+                <div key={app.id} className="bg-slate-50 p-4 rounded-md border border-slate-200 flex flex-wrap justify-between items-center opacity-90 gap-3">
                 <div>
                     <p className="font-bold text-slate-600">{app.patientName}</p>
                     <p className="text-sm text-slate-500">{new Date(app.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {app.time}</p>
                 </div>
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[app.status]}`}>
-                    {statusLabels[app.status]}
-                </span>
+                
+                <div className="flex items-center gap-3">
+                    {app.status !== 'canceled' && (
+                      <button
+                          onClick={() => onViewPEP(app.patientId, false)}
+                          className="flex items-center gap-1 px-3 py-1 text-xs font-medium bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors shadow-sm"
+                      >
+                          <FileTextIcon className="w-3 h-3" />
+                          Ver Prontuário
+                      </button>
+                    )}
+
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[app.status]}`}>
+                        {statusLabels[app.status]}
+                    </span>
                 </div>
-            )) : <p className="text-slate-500 text-center py-4">Nenhum histórico de consultas encontrado.</p>}
+                </div>
+            )) : <p className="text-slate-500 text-center py-4">Nenhum histórico de consultas encontrado{patientFilter ? ' para este paciente' : ''}.</p>}
             </div>
         </div>
       </div>

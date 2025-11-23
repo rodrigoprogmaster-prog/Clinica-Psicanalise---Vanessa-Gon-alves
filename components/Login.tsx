@@ -1,17 +1,24 @@
+
 import React, { useState } from 'react';
+import UserIcon from './icons/UserIcon';
 
 interface LoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (isMasterAccess?: boolean) => void;
+  currentPassword?: string;
+  profileImage: string | null;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, currentPassword = '2577', profileImage }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const MASTER_PASSWORD = '140552';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '2577') {
-      onLoginSuccess();
+    if (password === currentPassword) {
+      onLoginSuccess(false);
+    } else if (password === MASTER_PASSWORD) {
+      onLoginSuccess(true);
     } else {
       setError('Senha incorreta. Tente novamente.');
       setPassword('');
@@ -20,14 +27,24 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-xl mx-4 animate-fade-in">
-        <div className="text-center">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-xl mx-4 animate-fade-in flex flex-col items-center">
+        <div className="text-center w-full flex flex-col items-center">
+             <div className="h-24 w-24 rounded-full overflow-hidden bg-indigo-50 border-2 border-indigo-100 shadow-md flex items-center justify-center mb-4">
+                {profileImage ? (
+                    <img src={profileImage} alt="Perfil" className="h-full w-full object-cover" />
+                ) : (
+                    <div className="text-indigo-300 transform scale-150">
+                        <UserIcon />
+                    </div>
+                )}
+            </div>
+
             <h1 className="text-3xl font-bold text-indigo-700">
               Clínica de Psicanálise
             </h1>
             <p className="mt-2 text-slate-500">Bem-vinda, Vanessa Gonçalves.</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6 w-full" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="username" className="sr-only">Usuário</label>
@@ -62,7 +79,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-all"
             >
               Entrar
             </button>
