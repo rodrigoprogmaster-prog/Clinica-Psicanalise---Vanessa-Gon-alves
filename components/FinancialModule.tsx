@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Transaction, Patient } from '../types';
 import ModuleContainer from './ModuleContainer';
@@ -7,7 +8,7 @@ import FileTextIcon from './icons/FileTextIcon';
 import CloseIcon from './icons/CloseIcon';
 import PrintIcon from './icons/PrintIcon';
 import Skeleton from './Skeleton';
-import { formatCurrency, parseCurrency } from '../utils/formatting';
+import { formatCurrency, parseCurrency, getTodayString } from '../utils/formatting';
 
 interface FinancialModuleProps {
   onNavigate: (view: View) => void;
@@ -34,7 +35,14 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  
+  // Filter States
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
+  const [filterDate, setFilterDate] = useState(getTodayString());
+  const [filterMonth, setFilterMonth] = useState(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -42,7 +50,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
     description: '',
     amount: 0,
     type: 'income',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayString(),
     patientId: ''
   });
   const [amountInput, setAmountInput] = useState('');
@@ -58,10 +66,21 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
     return transactions.filter(t => {
       const matchesPatient = filteredPatient ? t.patientId === filteredPatient.id : true;
       const matchesType = filterType === 'all' ? true : t.type === filterType;
-      const matchesMonth = filterMonth ? t.date.startsWith(filterMonth) : true;
-      return matchesPatient && matchesType && matchesMonth;
+      
+      let matchesDate = true;
+      if (filterMode === 'daily') {
+          matchesDate = filterDate ? t.date === filterDate : true;
+      } else {
+          // Monthly filter (YYYY-MM)
+          if (filterMonth) {
+              const tDate = t.date.substring(0, 7); // Extract YYYY-MM from YYYY-MM-DD
+              matchesDate = tDate === filterMonth;
+          }
+      }
+
+      return matchesPatient && matchesType && matchesDate;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, filteredPatient, filterType, filterMonth]);
+  }, [transactions, filteredPatient, filterType, filterDate, filterMonth, filterMode]);
 
   const summary = useMemo(() => {
     const income = filteredTransactions
@@ -79,7 +98,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
       description: '',
       amount: 0,
       type: 'income',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayString(),
       patientId: filteredPatient ? filteredPatient.id : ''
     });
     setAmountInput('');
@@ -192,6 +211,13 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
     }
   };
 
+  const getMonthLabel = (ym: string) => {
+      if (!ym) return '';
+      const [y, m] = ym.split('-');
+      const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+      return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
   return (
     <ModuleContainer 
       title="Módulo Financeiro" 
@@ -234,7 +260,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-4 gap-4">
         <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
           <button 
             onClick={() => setFilterType('all')}
@@ -256,17 +282,51 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
           </button>
         </div>
         
-        <input 
-          type="month" 
-          value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          className="p-2 border border-slate-300 rounded-md text-sm bg-white"
-        />
+        <div className="flex items-center gap-3 bg-white border border-slate-200 p-1.5 rounded-lg shadow-sm">
+            <div className="flex bg-slate-100 rounded p-0.5">
+                <button 
+                    onClick={() => setFilterMode('daily')}
+                    className={`px-3 py-1 text-xs font-bold uppercase rounded transition-all ${filterMode === 'daily' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
+                >
+                    Dia
+                </button>
+                <button 
+                    onClick={() => setFilterMode('monthly')}
+                    className={`px-3 py-1 text-xs font-bold uppercase rounded transition-all ${filterMode === 'monthly' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
+                >
+                    Mês
+                </button>
+            </div>
+            
+            {filterMode === 'daily' ? (
+                <input 
+                  type="date" 
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="p-1 border-none text-sm bg-transparent focus:ring-0 text-slate-700 font-medium cursor-pointer"
+                />
+            ) : (
+                <input 
+                  type="month" 
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="p-1 border-none text-sm bg-transparent focus:ring-0 text-slate-700 font-medium cursor-pointer"
+                />
+            )}
+        </div>
       </div>
 
       {/* Transaction Table */}
       <div className="overflow-x-auto">
-        <h3 className="text-lg font-semibold text-slate-700 mb-4">Histórico de Transações</h3>
+        <h3 className="text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            Histórico de Transações
+            <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                {filterMode === 'daily' 
+                    ? (filterDate ? new Date(filterDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'Todos os dias') 
+                    : (filterMonth ? getMonthLabel(filterMonth) : 'Todos os meses')
+                }
+            </span>
+        </h3>
         <table className="min-w-full bg-white border border-slate-200">
           <thead className="bg-slate-50">
             <tr>
@@ -303,6 +363,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                                     title="Recibo"
                                 >
                                     <FileTextIcon className="w-3 h-3" />
+                                    Recibo
                                 </button>
                             )}
                             <button 
@@ -311,6 +372,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                                 title="Editar"
                             >
                                 <EditIcon className="w-3 h-3" />
+                                Editar
                             </button>
                             <button 
                                 onClick={() => setTransactionToDelete(t)}
@@ -318,13 +380,14 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                                 title="Excluir"
                             >
                                 <TrashIcon />
+                                Excluir
                             </button>
                         </div>
                     </td>
                 </tr>
             )) : (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-500">Nenhuma transação encontrada para os filtros aplicados.</td>
+                <td colSpan={4} className="text-center py-10 text-slate-500">Nenhuma transação encontrada para este período.</td>
               </tr>
             )}
           </tbody>
