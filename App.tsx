@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType, NotificationLog, AuditLogEntry, ToastNotification } from './types';
@@ -420,6 +421,7 @@ const App: React.FC = () => {
                   setObservations={setObservations}
                   setTransactions={setTransactions}
                   auditLogs={auditLogs}
+                  setAuditLogs={setAuditLogs}
                   profileImage={profileImage}
                   setProfileImage={setProfileImage}
                   signatureImage={signatureImage}

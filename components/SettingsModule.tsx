@@ -35,6 +35,7 @@ interface SettingsModuleProps {
   setObservations: React.Dispatch<React.SetStateAction<InternalObservation[]>>;
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   auditLogs: AuditLogEntry[];
+  setAuditLogs?: React.Dispatch<React.SetStateAction<AuditLogEntry[]>>;
 
   profileImage: string | null;
   setProfileImage: React.Dispatch<React.SetStateAction<string | null>>;
@@ -66,6 +67,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
   setObservations,
   setTransactions,
   auditLogs,
+  setAuditLogs,
 
   profileImage,
   setProfileImage,
@@ -296,7 +298,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
 
   const executeBackup = () => {
       const backupData = {
-          version: "1.0",
+          version: "2.0",
           timestamp: new Date().toISOString(),
           patients,
           appointments,
@@ -304,13 +306,17 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
           observations,
           transactions,
           consultationTypes,
-          auditLogs
+          auditLogs,
+          settings: {
+            profileImage,
+            signatureImage
+          }
       };
 
       const now = new Date();
       const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
       const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }).replace(/:/g, '-');
-      const filename = `backup_realizado_${dateStr}_${timeStr}.json`;
+      const filename = `backup_completo_clinica_${dateStr}_${timeStr}.json`;
 
       const jsonString = JSON.stringify(backupData, null, 2);
       const blob = new Blob([jsonString], { type: "application/json" });
@@ -325,7 +331,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
       URL.revokeObjectURL(url);
 
       setIsBackupModalOpen(false);
-      onShowToast('Backup realizado e download iniciado.', 'success');
+      onShowToast('Backup completo realizado e download iniciado.', 'success');
   };
 
   const handleTriggerRestore = () => {
@@ -371,8 +377,22 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                   if (data.transactions) setTransactions(data.transactions);
                   if (data.consultationTypes) setConsultationTypes(data.consultationTypes);
                   
+                  // Restore Audit Logs if setter is provided
+                  if (data.auditLogs && setAuditLogs) {
+                      setAuditLogs(data.auditLogs);
+                  }
+
+                  // Restore Settings (Images)
+                  if (data.settings) {
+                      if (data.settings.profileImage !== undefined) setProfileImage(data.settings.profileImage);
+                      if (data.settings.signatureImage !== undefined && setSignatureImage) setSignatureImage(data.settings.signatureImage);
+                  } else {
+                      // Fallback for older backups
+                      if (data.profileImage !== undefined) setProfileImage(data.profileImage);
+                  }
+                  
                   setIsRestoreModalOpen(false);
-                  onShowToast('Dados restaurados com sucesso!', 'success');
+                  onShowToast('Restauração completa realizada com sucesso!', 'success');
                   setTimeout(() => onNavigate('dashboard'), 1500);
               } else {
                   setRestoreError('Arquivo de backup inválido ou corrompido.');
@@ -423,10 +443,10 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
           <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-800">Confirmar Backup</h3>
+                    <h3 className="text-lg font-bold text-slate-800">Confirmar Backup Completo</h3>
                     <button onClick={() => setIsBackupModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
                 </div>
-                <p className="text-slate-600 mb-4 text-sm">Digite sua senha para autorizar o download do backup completo do sistema.</p>
+                <p className="text-slate-600 mb-4 text-sm">Esta ação fará o download de todos os dados do sistema, incluindo pacientes, finanças e configurações. Digite sua senha para autorizar.</p>
                 <form onSubmit={confirmBackup}>
                     <input 
                         type="password" 
@@ -455,7 +475,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                     <button onClick={() => setIsRestoreModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
                 </div>
                 <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 text-sm text-amber-800">
-                    <strong>Atenção:</strong> Esta ação substituirá todos os dados atuais do sistema.
+                    <strong>Atenção:</strong> Esta ação substituirá TODOS os dados atuais do sistema pelos dados do arquivo de backup.
                 </div>
                 <p className="text-slate-600 mb-4 text-sm">Digite sua senha para confirmar a restauração do arquivo: <span className="font-mono text-xs bg-slate-100 p-1 rounded">{restoreFile?.name}</span></p>
                 <form onSubmit={confirmRestore}>
@@ -505,14 +525,14 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                             onClick={() => setSettingsTab('data')}
                             className={`py-2 px-4 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${settingsTab === 'data' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
-                            Gerenciador de Dados
+                            Backup & Dados
                         </button>
                         <button 
                             onClick={() => setSettingsTab('docs')}
                             className={`py-2 px-4 font-medium text-sm transition-colors border-b-2 whitespace-nowrap flex items-center gap-2 ${settingsTab === 'docs' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
                             <span className="scale-75"><BookIcon /></span>
-                            Documentação & Ajuda
+                            Documentação
                         </button>
                         {isMasterAccess && (
                             <button 
@@ -520,7 +540,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                                 className={`py-2 px-4 font-medium text-sm transition-colors border-b-2 whitespace-nowrap flex items-center gap-2 ${settingsTab === 'audit' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                             >
                                 <span className="scale-75"><FileTextIcon className="w-4 h-4"/></span>
-                                Registro de Atividades
+                                Logs
                             </button>
                         )}
                     </>
@@ -734,18 +754,23 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                     
                     {/* Backup Section */}
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Backup e Restauração</h3>
+                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Backup de Segurança Completo</h3>
+                        <p className="text-sm text-slate-600 mb-6">Gera um arquivo contendo todos os pacientes, consultas, financeiro, prontuários, logs e configurações (incluindo foto e assinatura).</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button onClick={handleInitiateBackup} className="flex flex-col items-center justify-center p-4 border-2 border-slate-100 rounded-lg hover:border-indigo-100 hover:bg-indigo-50 transition-all group">
-                                <div className="text-indigo-500 mb-2 group-hover:scale-110 transition-transform"><DownloadIcon /></div>
-                                <span className="font-medium text-slate-700">Fazer Backup</span>
-                                <span className="text-xs text-slate-400 text-center mt-1">Baixar dados em JSON</span>
+                            <button onClick={handleInitiateBackup} className="flex flex-col items-center justify-center p-6 border-2 border-slate-100 rounded-lg hover:border-indigo-100 hover:bg-indigo-50 transition-all group">
+                                <div className="text-indigo-500 mb-3 group-hover:scale-110 transition-transform bg-white p-3 rounded-full shadow-sm">
+                                    <DownloadIcon />
+                                </div>
+                                <span className="font-bold text-slate-700">Fazer Backup Completo</span>
+                                <span className="text-xs text-slate-400 text-center mt-1">Salvar todos os dados e configurações</span>
                             </button>
                             
-                            <button onClick={handleTriggerRestore} className="flex flex-col items-center justify-center p-4 border-2 border-slate-100 rounded-lg hover:border-amber-100 hover:bg-amber-50 transition-all group relative">
-                                <div className="text-amber-500 mb-2 group-hover:scale-110 transition-transform"><UploadIcon /></div>
-                                <span className="font-medium text-slate-700">Restaurar Dados</span>
-                                <span className="text-xs text-slate-400 text-center mt-1">Carregar backup JSON</span>
+                            <button onClick={handleTriggerRestore} className="flex flex-col items-center justify-center p-6 border-2 border-slate-100 rounded-lg hover:border-amber-100 hover:bg-amber-50 transition-all group relative">
+                                <div className="text-amber-500 mb-3 group-hover:scale-110 transition-transform bg-white p-3 rounded-full shadow-sm">
+                                    <UploadIcon />
+                                </div>
+                                <span className="font-bold text-slate-700">Restaurar Sistema</span>
+                                <span className="text-xs text-slate-400 text-center mt-1">Carregar arquivo de backup</span>
                                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".json" className="hidden" />
                             </button>
                         </div>
