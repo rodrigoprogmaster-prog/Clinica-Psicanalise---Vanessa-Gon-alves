@@ -71,6 +71,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
   const [patientToToggleStatus, setPatientToToggleStatus] = useState<Patient | null>(null);
   const [formStep, setFormStep] = useState<'details' | 'confirm'>('details');
   const [showInactive, setShowInactive] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState(initialFormData);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -229,8 +230,12 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
   };
 
   const displayedPatients = useMemo(() => 
-    patients.filter(p => showInactive ? true : p.isActive)
-  , [patients, showInactive]);
+    patients.filter(p => {
+      const matchesStatus = showInactive ? true : p.isActive;
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesStatus && matchesSearch;
+    })
+  , [patients, showInactive, searchTerm]);
 
   const patientHasAppointments = (patientId: string) => {
     return appointments.some(app => app.patientId === patientId);
@@ -238,24 +243,42 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
 
   return (
     <ModuleContainer title="Gestão de Pacientes" onBack={() => onNavigate('dashboard')}>
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <label htmlFor="show_inactive" className="font-medium text-slate-700">Mostrar inativos</label>
-          <input 
-            id="show_inactive"
-            type="checkbox" 
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            style={{ colorScheme: 'light' }}
-            className="appearance-none h-5 w-5 rounded border border-gray-300 bg-white checked:bg-indigo-600 checked:border-transparent focus:ring-indigo-500 focus:ring-offset-2 accent-indigo-600 cursor-pointer"
-          />
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="relative w-full md:w-72">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+            <input 
+                type="text"
+                placeholder="Buscar paciente por nome..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2.5 border border-slate-300 rounded-full w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm shadow-sm transition-all"
+            />
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-        >
-           <span className="text-lg leading-none mb-0.5">+</span> Adicionar Paciente
-        </button>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-3 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
+                <label htmlFor="show_inactive" className="font-medium text-slate-600 text-sm cursor-pointer">Mostrar inativos</label>
+                <input 
+                    id="show_inactive"
+                    type="checkbox" 
+                    checked={showInactive}
+                    onChange={(e) => setShowInactive(e.target.checked)}
+                    style={{ colorScheme: 'light' }}
+                    className="appearance-none h-4 w-4 rounded border border-gray-400 bg-white checked:bg-indigo-600 checked:border-transparent focus:ring-indigo-500 focus:ring-offset-2 accent-indigo-600 cursor-pointer"
+                />
+            </div>
+            <button
+            onClick={openAddModal}
+            className="bg-indigo-600 text-white px-5 py-2.5 rounded-full hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm text-sm font-semibold w-full sm:w-auto justify-center"
+            >
+            <span className="text-lg leading-none mb-0.5">+</span> Adicionar Paciente
+            </button>
+        </div>
       </div>
 
       {isModalOpen && (
@@ -503,7 +526,9 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                 })}
                 {displayedPatients.length === 0 && (
                     <tr>
-                        <td colSpan={4} className="text-center py-10 text-slate-500">Nenhum paciente encontrado.</td>
+                        <td colSpan={4} className="text-center py-10 text-slate-500">
+                            {searchTerm ? 'Nenhum paciente encontrado com esse nome.' : 'Nenhum paciente encontrado.'}
+                        </td>
                     </tr>
                 )}
               </>

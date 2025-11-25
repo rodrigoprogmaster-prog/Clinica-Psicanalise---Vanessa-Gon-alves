@@ -30,7 +30,6 @@ import WelcomeModal from './components/WelcomeModal';
 import BirthdayModal from './components/BirthdayModal';
 import ReminderCheckModal from './components/ReminderCheckModal';
 import HelpModule from './components/HelpModule';
-import { mockPatients, mockAppointments, mockNotes, mockObservations, mockTransactions, mockConsultationTypes } from './data/mockData';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -258,20 +257,7 @@ const App: React.FC = () => {
     
     if (isMasterAccess) {
         setIsMasterAccessSession(true);
-        
-        // Auto-populate with mock data
-        setPatients(mockPatients);
-        setAppointments(mockAppointments);
-        setNotes(mockNotes);
-        setObservations(mockObservations);
-        setTransactions(mockTransactions);
-        setConsultationTypes(prev => {
-            // Merge mock types ensuring no duplicates by ID, or just overwrite
-            const existingIds = new Set(prev.map(ct => ct.id));
-            const newTypes = mockConsultationTypes.filter(ct => !existingIds.has(ct.id));
-            return [...prev, ...newTypes];
-        });
-        addToast('Acesso Mestre: Dados de teste carregados.', 'info');
+        addToast('Acesso Mestre concedido.', 'info');
         
         // Skip Onboarding check and go directly to birthday/reminders
         runBirthdayCheck();
