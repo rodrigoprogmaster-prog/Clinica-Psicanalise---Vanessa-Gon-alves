@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { View, Patient, Appointment, SessionNote, InternalObservation, Transaction, ConsultationType, NotificationLog, AuditLogEntry, ToastNotification } from './types';
@@ -91,6 +90,42 @@ const App: React.FC = () => {
   const [profileImage, setProfileImage] = useLocalStorage<string | null>('profileImage', null);
   const [signatureImage, setSignatureImage] = useLocalStorage<string | null>('signatureImage', null);
   
+  // Force Full Screen Logic
+  useEffect(() => {
+    const enterFullScreen = () => {
+      const doc = document.documentElement;
+      if (!document.fullscreenElement) {
+        doc.requestFullscreen().catch(err => {
+          // Fullscreen requests often fail if not triggered by user interaction.
+          // We log it silently or handle gracefully.
+          console.log("Fullscreen request intercepted:", err);
+        });
+      }
+    };
+
+    // Attempt on mount (might fail depending on browser policy)
+    enterFullScreen();
+
+    // Attempt on first interaction
+    const handleInteraction = () => {
+      enterFullScreen();
+      // Remove listeners once triggered to avoid repeated calls
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
+
   const logAction = useCallback((action: string, details: string) => {
     const newLog: AuditLogEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
