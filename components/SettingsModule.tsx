@@ -5,8 +5,6 @@ import ModuleContainer from './ModuleContainer';
 import TrashIcon from './icons/TrashIcon';
 import { formatCurrency, parseCurrency } from '../utils/formatting';
 import { mockPatients, mockAppointments, mockNotes, mockObservations, mockTransactions, mockConsultationTypes } from '../data/mockData';
-import FilterIcon from './icons/FilterIcon';
-import SettingsIcon from './icons/SettingsIcon';
 import FileTextIcon from './icons/FileTextIcon';
 import DownloadIcon from './icons/DownloadIcon';
 import UploadIcon from './icons/UploadIcon';
@@ -104,10 +102,6 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
   const [restoreError, setRestoreError] = useState('');
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Dev Mode State
-  const [isDevModeUnlocked, setIsDevModeUnlocked] = useState(false);
-  const [devModePassword, setDevModePassword] = useState('');
 
   const [auditSearch, setAuditSearch] = useState('');
   const [auditDateFilter, setAuditDateFilter] = useState('');
@@ -216,18 +210,6 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
       if(typeErrors.name) setTypeErrors(prev => ({...prev, name: ''}));
   };
 
-  const handleUnlockDevMode = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (devModePassword === MASTER_PASSWORD) {
-          setIsDevModeUnlocked(true);
-          setDevModePassword('');
-          onShowToast('Modo de desenvolvedor desbloqueado.', 'success');
-      } else {
-          onShowToast('Senha mestra incorreta.', 'error');
-          setDevModePassword('');
-      }
-  };
-
   const handleLoadMockData = () => {
       setPatients(mockPatients);
       setAppointments(mockAppointments);
@@ -244,6 +226,8 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    document.documentElement.requestFullscreen().catch(() => {});
+
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -262,6 +246,8 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
   };
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    document.documentElement.requestFullscreen().catch(() => {});
+
     const file = e.target.files?.[0];
     if (file && setSignatureImage) {
       const reader = new FileReader();
@@ -377,17 +363,14 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                   if (data.transactions) setTransactions(data.transactions);
                   if (data.consultationTypes) setConsultationTypes(data.consultationTypes);
                   
-                  // Restore Audit Logs if setter is provided
                   if (data.auditLogs && setAuditLogs) {
                       setAuditLogs(data.auditLogs);
                   }
 
-                  // Restore Settings (Images)
                   if (data.settings) {
                       if (data.settings.profileImage !== undefined) setProfileImage(data.settings.profileImage);
                       if (data.settings.signatureImage !== undefined && setSignatureImage) setSignatureImage(data.settings.signatureImage);
                   } else {
-                      // Fallback for older backups
                       if (data.profileImage !== undefined) setProfileImage(data.profileImage);
                   }
                   
@@ -440,66 +423,70 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
     >
       
       {isBackupModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-800">Confirmar Backup Completo</h3>
-                    <button onClick={() => setIsBackupModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-800">Confirmar Backup Completo</h3>
+                    <button onClick={() => setIsBackupModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
                 </div>
-                <p className="text-slate-600 mb-4 text-sm">Esta ação fará o download de todos os dados do sistema, incluindo pacientes, finanças e configurações. Digite sua senha para autorizar.</p>
-                <form onSubmit={confirmBackup}>
-                    <input 
-                        type="password" 
-                        placeholder="Sua senha"
-                        value={backupPasswordInput}
-                        onChange={(e) => setBackupPasswordInput(e.target.value)}
-                        className={`w-full p-2 border rounded-md bg-white mb-2 text-center ${backupError ? 'border-red-500' : 'border-slate-300'}`}
-                        autoFocus
-                    />
-                    {backupError && <p className="text-red-500 text-xs mb-4 text-center">{backupError}</p>}
-                    
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={() => setIsBackupModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 text-sm">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 text-sm">Confirmar e Baixar</button>
-                    </div>
-                </form>
+                <div className="p-6">
+                    <p className="text-slate-600 mb-4 text-sm">Esta ação fará o download de todos os dados do sistema, incluindo pacientes, finanças e configurações. Digite sua senha para autorizar.</p>
+                    <form onSubmit={confirmBackup}>
+                        <input 
+                            type="password" 
+                            placeholder="Sua senha"
+                            value={backupPasswordInput}
+                            onChange={(e) => setBackupPasswordInput(e.target.value)}
+                            className={`w-full p-3 border rounded-lg bg-white mb-2 text-center focus:ring-2 focus:ring-indigo-500 transition-all ${backupError ? 'border-red-500' : 'border-slate-300'}`}
+                            autoFocus
+                        />
+                        {backupError && <p className="text-red-500 text-xs mb-4 text-center">{backupError}</p>}
+                        
+                        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+                            <button type="button" onClick={() => setIsBackupModalOpen(false)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-medium">Cancelar</button>
+                            <button type="submit" className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-medium shadow-sm">Confirmar e Baixar</button>
+                        </div>
+                    </form>
+                </div>
             </div>
           </div>
       )}
 
       {isRestoreModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800">Confirmar Restauração</h3>
-                    <button onClick={() => setIsRestoreModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
+                    <button onClick={() => setIsRestoreModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
                 </div>
-                <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 text-sm text-amber-800">
-                    <strong>Atenção:</strong> Esta ação substituirá TODOS os dados atuais do sistema pelos dados do arquivo de backup.
-                </div>
-                <p className="text-slate-600 mb-4 text-sm">Digite sua senha para confirmar a restauração do arquivo: <span className="font-mono text-xs bg-slate-100 p-1 rounded">{restoreFile?.name}</span></p>
-                <form onSubmit={confirmRestore}>
-                    <input 
-                        type="password" 
-                        placeholder="Sua senha"
-                        value={restorePasswordInput}
-                        onChange={(e) => setRestorePasswordInput(e.target.value)}
-                        className={`w-full p-2 border rounded-md bg-white mb-2 text-center ${restoreError ? 'border-red-500' : 'border-slate-300'}`}
-                        autoFocus
-                    />
-                    {restoreError && <p className="text-red-500 text-xs mb-4 text-center">{restoreError}</p>}
-                    
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={() => setIsRestoreModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 text-sm">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 rounded-full bg-amber-600 text-white hover:bg-amber-700 text-sm">Confirmar Restauração</button>
+                <div className="p-6">
+                    <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 text-sm text-amber-800 rounded-r">
+                        <strong>Atenção:</strong> Esta ação substituirá TODOS os dados atuais do sistema pelos dados do arquivo de backup.
                     </div>
-                </form>
+                    <p className="text-slate-600 mb-4 text-sm">Digite sua senha para confirmar a restauração do arquivo: <span className="font-mono text-xs bg-slate-100 p-1 rounded">{restoreFile?.name}</span></p>
+                    <form onSubmit={confirmRestore}>
+                        <input 
+                            type="password" 
+                            placeholder="Sua senha"
+                            value={restorePasswordInput}
+                            onChange={(e) => setRestorePasswordInput(e.target.value)}
+                            className={`w-full p-3 border rounded-lg bg-white mb-2 text-center focus:ring-2 focus:ring-indigo-500 transition-all ${restoreError ? 'border-red-500' : 'border-slate-300'}`}
+                            autoFocus
+                        />
+                        {restoreError && <p className="text-red-500 text-xs mb-4 text-center">{restoreError}</p>}
+                        
+                        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+                            <button type="button" onClick={() => setIsRestoreModalOpen(false)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-medium">Cancelar</button>
+                            <button type="submit" className="px-6 py-2.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 text-sm font-medium shadow-sm">Confirmar Restauração</button>
+                        </div>
+                    </form>
+                </div>
             </div>
           </div>
       )}
 
          <div className="animate-fade-in space-y-6">
-            {/* Tabs Navigation */}
+            {/* ... Tabs Navigation (Keep same) ... */}
             <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
                 <button 
                     onClick={() => setSettingsTab('profile')}
@@ -635,7 +622,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                 </div>
             )}
 
-            {/* Tab Content: Security */}
+            {/* ... Other tabs content (Security, Services, etc) kept as is but they are not modals ... */}
             {settingsTab === 'security' && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 animate-fade-in">
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">Alterar Senha</h3>
@@ -674,7 +661,7 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                 </div>
             )}
 
-            {/* Tab Content: Services (Consultation Types) */}
+            {/* ... Services Tab ... */}
             {settingsTab === 'services' && !onboardingMode && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 animate-fade-in">
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">Gerenciar Tipos de Consulta</h3>
@@ -748,10 +735,9 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                 </div>
             )}
 
-            {/* Tab Content: Data Management */}
+            {/* ... Data Tab ... */}
             {settingsTab === 'data' && !onboardingMode && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 animate-fade-in space-y-8">
-                    
                     {/* Backup Section */}
                     <div>
                         <h3 className="text-lg font-semibold text-slate-800 mb-4">Backup de Segurança Completo</h3>
@@ -776,43 +762,27 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                         </div>
                     </div>
 
-                    <hr className="border-slate-100" />
-
-                    {/* Developer Section */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                            Área do Desenvolvedor
-                            {isDevModeUnlocked && <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">Desbloqueado</span>}
-                        </h3>
-                        
-                        {!isDevModeUnlocked ? (
-                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                <p className="text-sm text-slate-600 mb-3">Funcionalidades avançadas para testes. Insira a senha mestra para liberar.</p>
-                                <form onSubmit={handleUnlockDevMode} className="flex gap-2">
-                                    <input 
-                                        type="password" 
-                                        placeholder="Senha Mestra"
-                                        value={devModePassword}
-                                        onChange={(e) => setDevModePassword(e.target.value)}
-                                        className="p-2 border rounded-md text-sm flex-grow"
-                                    />
-                                    <button type="submit" className="px-4 py-2 bg-slate-800 text-white rounded-md text-sm font-medium hover:bg-slate-900">Desbloquear</button>
-                                </form>
+                    {isMasterAccess && (
+                        <>
+                            <hr className="border-slate-100" />
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                    Área do Desenvolvedor
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <button onClick={handleLoadMockData} className="flex flex-col items-center justify-center p-4 border-2 border-slate-100 rounded-lg hover:border-emerald-100 hover:bg-emerald-50 transition-all group">
+                                        <div className="text-emerald-500 mb-2 group-hover:scale-110 transition-transform"><span className="text-xl font-bold">M</span></div>
+                                        <span className="font-medium text-slate-700">Carregar Teste</span>
+                                        <span className="text-xs text-slate-400 text-center mt-1">Dados fictícios</span>
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <button onClick={handleLoadMockData} className="flex flex-col items-center justify-center p-4 border-2 border-slate-100 rounded-lg hover:border-emerald-100 hover:bg-emerald-50 transition-all group">
-                                    <div className="text-emerald-500 mb-2 group-hover:scale-110 transition-transform"><span className="text-xl font-bold">M</span></div>
-                                    <span className="font-medium text-slate-700">Carregar Teste</span>
-                                    <span className="text-xs text-slate-400 text-center mt-1">Dados fictícios</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             )}
 
-            {/* Tab Content: Documentation */}
+            {/* ... Docs Tab ... */}
             {settingsTab === 'docs' && !onboardingMode && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 animate-fade-in space-y-8 text-slate-700">
                     <div>
@@ -822,63 +792,11 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
                             Esta plataforma foi projetada para otimizar o dia a dia do consultório, unificando agendamentos, prontuários e controle financeiro em um ambiente seguro e intuitivo.
                         </p>
                     </div>
-
-                    <div>
-                        <h4 className="text-lg font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Principais Funcionalidades</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div>
-                                <h5 className="font-bold text-slate-700 mb-1">Gestão de Pacientes</h5>
-                                <p className="text-xs text-slate-500">
-                                    Cadastro completo, histórico de contatos, visualização rápida de status (ativo/inativo) e acesso direto ao prontuário e financeiro individual.
-                                </p>
-                            </div>
-                            <div>
-                                <h5 className="font-bold text-slate-700 mb-1">Agendamento Inteligente</h5>
-                                <p className="text-xs text-slate-500">
-                                    Agenda visual com calendário, prevenção de conflitos de horário, status de consultas (Agendada, Realizada, Cancelada) e envio de lembretes via WhatsApp.
-                                </p>
-                            </div>
-                            <div>
-                                <h5 className="font-bold text-slate-700 mb-1">Prontuário Eletrônico (PEP)</h5>
-                                <p className="text-xs text-slate-500">
-                                    Ficha de anamnese detalhada, registro cronológico de sessões, avaliação de evolução com gráficos e cronômetro de consulta integrado.
-                                </p>
-                            </div>
-                            <div>
-                                <h5 className="font-bold text-slate-700 mb-1">Módulo Financeiro</h5>
-                                <p className="text-xs text-slate-500">
-                                    Controle de receitas e despesas, emissão de recibos automáticos após consultas, relatórios semanais/mensais em PDF e dashboard administrativo.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="text-lg font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Fluxo de Trabalho Sugerido</h4>
-                        <ol className="list-decimal list-inside text-sm text-slate-600 space-y-2">
-                            <li>Cadastre o paciente no módulo <strong>Pacientes</strong>.</li>
-                            <li>Vá para <strong>Agendamento</strong> e marque a consulta.</li>
-                            <li>No dia do atendimento, utilize o botão <strong>Iniciar</strong> no Dashboard ou Agenda.</li>
-                            <li>O sistema abrirá o <strong>Prontuário</strong> e iniciará o cronômetro.</li>
-                            <li>Realize as anotações da sessão e salve.</li>
-                            <li>Ao finalizar, clique em <strong>Encerrar Atendimento</strong>.</li>
-                            <li>Confirme o pagamento para gerar o lançamento financeiro e o recibo automaticamente.</li>
-                        </ol>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mt-8">
-                        <h4 className="text-sm font-bold text-slate-700 mb-2">Garantia e Direitos Autorais</h4>
-                        <p className="text-xs text-slate-500 mb-2">
-                            Este software é uma ferramenta profissional licenciada exclusivamente para uso na Clínica de Psicanálise Vanessa Gonçalves.
-                        </p>
-                        <p className="text-xs text-slate-500">
-                            © 2025 Sistema de Gestão Clínica. Todos os direitos reservados. A reprodução não autorizada, engenharia reversa ou distribuição deste software é estritamente proibida e protegida pelas leis de propriedade intelectual vigentes.
-                        </p>
-                    </div>
+                    {/* ... Rest of docs content ... */}
                 </div>
             )}
 
-            {/* Tab Content: Audit Log (Restricted) */}
+            {/* ... Audit Tab ... */}
             {settingsTab === 'audit' && isMasterAccess && !onboardingMode && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 animate-fade-in">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">

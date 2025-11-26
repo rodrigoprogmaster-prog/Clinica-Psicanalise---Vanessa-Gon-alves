@@ -169,6 +169,8 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
   };
 
   const handlePrintReceipt = (t: Transaction) => {
+    document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen denied:", err));
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         const todayString = new Date().toISOString().slice(0, 10);
@@ -396,16 +398,18 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
                     <h3 className="text-xl font-bold text-slate-800">{modalMode === 'add' ? 'Nova Transação' : 'Editar Transação'}</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100 text-slate-500"><CloseIcon /></button>
+                    <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                        <CloseIcon />
+                    </button>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="p-6 space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo</label>
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input 
@@ -433,44 +437,44 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Descrição</label>
                         <input 
                             type="text" 
                             value={currentTransaction.description} 
                             onChange={(e) => setCurrentTransaction(prev => ({...prev, description: e.target.value}))}
-                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
+                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                             placeholder="Ex: Consulta, Aluguel, Material..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Valor</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Valor</label>
                         <input 
                             type="text" 
                             value={amountInput} 
                             onChange={handleAmountChange}
-                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
+                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                             placeholder="R$ 0,00"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Data</label>
                         <input 
                             type="date" 
                             value={currentTransaction.date} 
                             onChange={(e) => setCurrentTransaction(prev => ({...prev, date: e.target.value}))}
-                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
+                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         />
                     </div>
 
                     {!filteredPatient && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a Paciente (Opcional)</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1">Vincular a Paciente (Opcional)</label>
                             <select 
                                 value={currentTransaction.patientId || ''} 
                                 onChange={(e) => setCurrentTransaction(prev => ({...prev, patientId: e.target.value}))}
-                                className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
+                                className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                             >
                                 <option value="">Nenhum</option>
                                 {patients.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
@@ -481,9 +485,9 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                     )}
                 </div>
 
-                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                    <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Cancelar</button>
-                    <button onClick={handleSaveTransaction} className="px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">Salvar</button>
+                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+                    <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Cancelar</button>
+                    <button onClick={handleSaveTransaction} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm">Salvar</button>
                 </div>
             </div>
         </div>
@@ -491,17 +495,21 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
 
       {/* Delete Confirmation Modal */}
       {transactionToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Excluir Transação</h3>
-                <p className="text-slate-600 mb-6">Tem certeza que deseja excluir este registro? A ação não pode ser desfeita.</p>
-                <div className="bg-slate-50 p-3 rounded border border-slate-200 mb-6 text-sm">
-                    <p><strong>Descrição:</strong> {transactionToDelete.description}</p>
-                    <p><strong>Valor:</strong> {transactionToDelete.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-800">Excluir Transação</h3>
                 </div>
-                <div className="flex justify-end gap-3">
-                    <button onClick={() => setTransactionToDelete(null)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Cancelar</button>
-                    <button onClick={handleDeleteTransaction} className="px-4 py-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm">Sim, excluir</button>
+                <div className="p-6">
+                    <p className="text-slate-600 mb-4">Tem certeza que deseja excluir este registro? A ação não pode ser desfeita.</p>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
+                        <p><strong>Descrição:</strong> {transactionToDelete.description}</p>
+                        <p><strong>Valor:</strong> {transactionToDelete.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+                    <button onClick={() => setTransactionToDelete(null)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Cancelar</button>
+                    <button onClick={handleDeleteTransaction} className="px-6 py-2.5 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors font-medium shadow-sm">Sim, excluir</button>
                 </div>
             </div>
         </div>

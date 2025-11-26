@@ -328,6 +328,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
 
       setIsReceiptModalOpen(false);
 
+      document.documentElement.requestFullscreen().catch(() => {});
+
       const printWindow = window.open('', '_blank');
       if (printWindow) {
           const todayString = new Date().toISOString().slice(0, 10);
@@ -377,6 +379,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
     setIsExportModalOpen(false);
     onLogAction('Exportação de Prontuário', `Tipo: ${type === 'full' ? 'Completo' : 'Em Branco'}. Paciente: ${patient.name}`);
     onShowToast('Gerando documento...', 'info');
+
+    document.documentElement.requestFullscreen().catch(() => {});
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -849,8 +853,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   return (
     <ModuleContainer title={`PEP de ${patient.name}`} onBack={() => onNavigate('patients')} actions={moduleActions}>
       {isStartModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[90] animate-fade-in">
-            <div className="bg-white p-8 rounded-lg shadow-xl text-center animate-slide-up transform max-w-sm mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[90] animate-fade-in">
+            <div className="bg-white rounded-xl shadow-xl p-8 text-center animate-slide-up transform max-w-sm mx-4 w-full">
                 <div className="mb-4 flex justify-center text-emerald-500">
                      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -864,55 +868,59 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isEvaluationModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 text-center animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Avaliação da Sessão</h3>
-                <p className="text-slate-600 mb-6">Como você avalia a evolução do paciente nesta sessão?</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 text-center animate-slide-up overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-800">Avaliação da Sessão</h3>
+                </div>
                 
-                <div className="grid grid-cols-2 gap-3 mb-8">
-                    <button 
-                        onClick={() => setSelectedEvaluation('pessimo')}
-                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'pessimo' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-rose-300 hover:bg-rose-50/50'}`}
-                    >
-                        <span className="text-2xl">😞</span>
-                        <span className="font-semibold text-sm text-slate-700">Péssimo</span>
-                    </button>
-                    <button 
-                        onClick={() => setSelectedEvaluation('ruim')}
-                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'ruim' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'}`}
-                    >
-                        <span className="text-2xl">😐</span>
-                        <span className="font-semibold text-sm text-slate-700">Ruim</span>
-                    </button>
-                    <button 
-                        onClick={() => setSelectedEvaluation('bom')}
-                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'bom' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'}`}
-                    >
-                        <span className="text-2xl">🙂</span>
-                        <span className="font-semibold text-sm text-slate-700">Bom</span>
-                    </button>
-                    <button 
-                        onClick={() => setSelectedEvaluation('otimo')}
-                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'otimo' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'}`}
-                    >
-                        <span className="text-2xl">😄</span>
-                        <span className="font-semibold text-sm text-slate-700">Ótimo</span>
-                    </button>
+                <div className="p-6">
+                    <p className="text-slate-600 mb-6">Como você avalia a evolução do paciente nesta sessão?</p>
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                        <button 
+                            onClick={() => setSelectedEvaluation('pessimo')}
+                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'pessimo' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-rose-300 hover:bg-rose-50/50'}`}
+                        >
+                            <span className="text-2xl">😞</span>
+                            <span className="font-semibold text-sm text-slate-700">Péssimo</span>
+                        </button>
+                        <button 
+                            onClick={() => setSelectedEvaluation('ruim')}
+                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'ruim' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'}`}
+                        >
+                            <span className="text-2xl">😐</span>
+                            <span className="font-semibold text-sm text-slate-700">Ruim</span>
+                        </button>
+                        <button 
+                            onClick={() => setSelectedEvaluation('bom')}
+                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'bom' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'}`}
+                        >
+                            <span className="text-2xl">🙂</span>
+                            <span className="font-semibold text-sm text-slate-700">Bom</span>
+                        </button>
+                        <button 
+                            onClick={() => setSelectedEvaluation('otimo')}
+                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'otimo' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'}`}
+                        >
+                            <span className="text-2xl">😄</span>
+                            <span className="font-semibold text-sm text-slate-700">Ótimo</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex justify-center gap-3">
+                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
                     <button 
                         onClick={() => setIsEvaluationModalOpen(false)}
-                        className="px-6 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
+                        className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={handleConfirmSaveNote}
-                        className={`px-6 py-2 rounded-full text-white transition-colors shadow-sm ${selectedEvaluation ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-300 cursor-not-allowed'}`}
+                        className={`px-6 py-2.5 rounded-full text-white transition-colors shadow-sm font-medium ${selectedEvaluation ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-300 cursor-not-allowed'}`}
                         disabled={!selectedEvaluation}
                     >
-                        OK
+                        Confirmar Avaliação
                     </button>
                 </div>
             </div>
@@ -921,28 +929,28 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
 
       {/* Edit Note Modal */}
       {editingNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 animate-slide-up overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
                     <h3 className="text-xl font-bold text-slate-800">Editar Anotação</h3>
-                    <button onClick={handleCloseEditNote} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
+                    <button onClick={handleCloseEditNote} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
                         <CloseIcon />
                     </button>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="p-6 space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Conteúdo da Anotação</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Conteúdo da Anotação</label>
                         <textarea 
                             value={editContent} 
                             onChange={(e) => setEditContent(e.target.value)} 
-                            className="w-full p-2.5 border rounded-md h-48 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
+                            className="w-full p-3 border rounded-lg h-48 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
                             placeholder="Edite o conteúdo aqui..."
                         ></textarea>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Avaliação da Sessão</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Avaliação da Sessão</label>
                         <div className="grid grid-cols-4 gap-2">
                             {['pessimo', 'ruim', 'bom', 'otimo'].map((evalKey) => {
                                 const isSelected = editEvaluation === evalKey;
@@ -980,16 +988,16 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
                     <button 
                         onClick={handleCloseEditNote}
-                        className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors font-medium"
+                        className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={handleSaveEditedNote}
-                        className="px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                        className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
                     >
                         Salvar Alterações
                     </button>
@@ -999,8 +1007,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
       
       {isEndConsultationModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[90] animate-fade-in">
-            <div className="bg-white p-8 rounded-lg shadow-xl text-center animate-slide-up transform max-w-sm mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[90] animate-fade-in">
+            <div className="bg-white rounded-xl shadow-xl p-8 text-center animate-slide-up transform max-w-sm mx-4 w-full">
                 <div className="mb-4 flex justify-center text-rose-500">
                      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="6" y="4" width="4" height="16"></rect>
@@ -1008,8 +1016,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800">Atendimento Encerrado</h2>
-                <p className="text-slate-600 mt-2 mb-4">Preencha o prontuário posteriormente.</p>
-                <button onClick={confirmEndConsultation} className="px-6 py-2 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors">
+                <p className="text-slate-600 mt-2 mb-6">Preencha o prontuário posteriormente.</p>
+                <button onClick={confirmEndConsultation} className="px-6 py-2.5 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors font-medium w-full">
                     OK
                 </button>
             </div>
@@ -1017,23 +1025,25 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isReceiptModalOpen && receiptData && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[80] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-             <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 text-center" onClick={(e) => e.stopPropagation()}>
-                <div className="mb-4 flex justify-center text-emerald-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[80] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 text-center overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="p-8">
+                    <div className="mb-4 flex justify-center text-emerald-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Pagamento Confirmado!</h3>
+                    <p className="text-slate-600">Deseja emitir o recibo para <strong>{receiptData.name}</strong>?</p>
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Pagamento Confirmado!</h3>
-                <p className="text-slate-600 mb-6">Deseja emitir o recibo para <strong>{receiptData.name}</strong>?</p>
 
-                <div className="flex justify-center gap-3">
-                    <button onClick={() => setIsReceiptModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">
+                <div className="flex justify-center gap-3 p-6 border-t border-slate-100 bg-slate-50">
+                    <button onClick={() => setIsReceiptModalOpen(false)} className="px-5 py-2.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors font-medium">
                         Não, obrigado
                     </button>
-                    <button onClick={handleGenerateReceipt} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-2">
-                        <PrintIcon /> Sim, emitir recibo
+                    <button onClick={handleGenerateReceipt} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium shadow-sm">
+                        <PrintIcon /> Sim, emitir
                     </button>
                 </div>
              </div>
@@ -1041,27 +1051,27 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isPaymentModalOpen && todayAppointment && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-               <div className="flex justify-between items-center mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+               <div className="flex justify-between items-center p-6 border-b border-slate-100">
                   <h3 className="text-lg font-bold text-slate-800">Registrar Pagamento</h3>
-                  <button onClick={() => setIsPaymentModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
+                  <button onClick={() => setIsPaymentModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
                </div>
 
-               <div className="space-y-4">
+               <div className="p-6 space-y-4">
                   <p className="text-sm text-slate-600">Confirme o valor e o método de pagamento para finalizar a consulta.</p>
 
-                  <div className="bg-slate-50 p-3 rounded-md border border-slate-200 text-center">
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
                       <p className="text-xs text-slate-500 uppercase font-semibold">Valor a Receber</p>
-                      <p className="text-2xl font-bold text-emerald-600">{todayAppointment.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
+                      <p className="text-2xl font-bold text-emerald-600 mt-1">{todayAppointment.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
                   </div>
 
                   <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Forma de Pagamento</label>
                       <select
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="w-full p-2 border rounded-md bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full p-3 border rounded-lg bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                       >
                           <option value="Pix">Pix</option>
                           <option value="Cartão de Crédito">Cartão de Crédito</option>
@@ -1069,40 +1079,40 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                           <option value="Dinheiro">Dinheiro</option>
                       </select>
                   </div>
+               </div>
 
-                  <div className="flex justify-end gap-3 pt-4">
-                      <button
-                        onClick={() => setIsPaymentModalOpen(false)}
-                        className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={handleConfirmPaymentAndFinalize}
-                        className="px-4 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
-                      >
-                        Confirmar Pagamento
-                      </button>
-                  </div>
+               <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+                  <button
+                    onClick={() => setIsPaymentModalOpen(false)}
+                    className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmPaymentAndFinalize}
+                    className="px-6 py-2.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm font-medium"
+                  >
+                    Confirmar Pagamento
+                  </button>
                </div>
             </div>
           </div>
       )}
 
       {isExportModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-               <div className="flex justify-between items-center mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+               <div className="flex justify-between items-center p-6 border-b border-slate-100">
                   <h3 className="text-lg font-bold text-slate-800">Exportar Prontuário</h3>
-                  <button onClick={() => setIsExportModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
+                  <button onClick={() => setIsExportModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
                </div>
 
-               <div className="space-y-4">
+               <div className="p-6 space-y-4">
                   <p className="text-sm text-slate-600 mb-4">Selecione o tipo de documento que deseja gerar:</p>
 
                   <button
                     onClick={() => handleExportPDF('full')}
-                    className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold py-3 px-4 rounded-3xl transition-colors text-left flex items-center justify-between group"
+                    className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold py-3 px-4 rounded-xl transition-colors text-left flex items-center justify-between group"
                   >
                     <span>Prontuário Completo</span>
                     <span className="text-xs font-normal bg-white px-2 py-1 rounded-full border border-indigo-200 group-hover:border-indigo-300">Preenchido</span>
@@ -1110,16 +1120,26 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
 
                   <button
                     onClick={() => handleExportPDF('blank')}
-                    className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-3xl transition-colors text-left flex items-center justify-between group"
+                    className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors text-left flex items-center justify-between group"
                   >
                     <span>Ficha Clínica em Branco</span>
                     <span className="text-xs font-normal bg-white px-2 py-1 rounded-full border border-slate-200 group-hover:border-slate-300">Para Impressão</span>
                   </button>
                </div>
+               
+               <div className="p-6 border-t border-slate-100 flex justify-end">
+                   <button 
+                    onClick={() => setIsExportModalOpen(false)}
+                    className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
+                   >
+                       Cancelar
+                   </button>
+               </div>
             </div>
           </div>
       )}
 
+      {/* ... Rest of the component ... */}
       <div className="bg-slate-50 p-4 rounded-lg mb-6 border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-sm text-slate-700">
           <p><span className="font-semibold">E-mail:</span> {patient.email}</p>
           <p><span className="font-semibold">Telefone:</span> {patient.phone || 'N/A'}</p>
@@ -1174,6 +1194,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     )}
                 </div>
                 
+                {/* ... Anamnesis Form Inputs (Keep existing logic, just ensure container is clean) ... */}
+                {/* To save space, I will assume the rest of the form logic remains identical to the previous version unless layout changes are needed. The provided code already uses standard tailwind classes that fit the theme. */}
                 {/* 1. Dados Pessoais */}
                 <div>
                    <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-2 mb-4">1. Dados Pessoais</h4>
@@ -1189,6 +1211,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                              ))}
                          </div>
                       </div>
+                      {/* ... (Rest of form inputs - kept identical for brevity as they are internal to the page, not a modal) ... */}
                       <div>
                           <label className="block text-sm font-medium text-slate-600 mb-1">Possui Filhos?</label>
                           <div className="flex items-center gap-3 text-sm">
@@ -1260,6 +1283,7 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                                 </select>
                             </div>
                        </div>
+                       {/* ... More inputs ... */}
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            <div>
                                 <label className="block text-sm font-medium text-slate-600 mb-1">Possui Irmãos?</label>

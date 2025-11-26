@@ -31,27 +31,27 @@ const MyDayModal: React.FC<MyDayModalProps> = ({ onClose, appointments }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4 transform transition-transform duration-300 animate-slide-up"
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 transform transition-transform duration-300 animate-slide-up overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-4 pb-4 border-b">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
             <h3 className="text-xl font-bold text-slate-800">Meu Dia</h3>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
                 <CloseIcon />
             </button>
         </div>
         
-        <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
             <section>
-                <h4 className="font-semibold text-slate-700 mb-3">Consultas de Hoje</h4>
+                <h4 className="font-semibold text-slate-700 mb-3 border-b pb-2 border-slate-100">Consultas de Hoje</h4>
                 {todayAppointments.length > 0 ? (
                     <div className="space-y-2">
                         {todayAppointments.map(app => (
-                            <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center">
+                            <div key={app.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                                <div>
                                  <p className="font-semibold text-slate-700">{app.patientName}</p>
                                  <p className="text-sm text-slate-500">Horário: {app.time}</p>
@@ -65,11 +65,11 @@ const MyDayModal: React.FC<MyDayModalProps> = ({ onClose, appointments }) => {
                 )}
             </section>
             <section>
-                <h4 className="font-semibold text-slate-700 mb-3">Consultas de Amanhã</h4>
+                <h4 className="font-semibold text-slate-700 mb-3 border-b pb-2 border-slate-100">Consultas de Amanhã</h4>
                 {tomorrowAppointments.length > 0 ? (
                     <div className="space-y-2">
                         {tomorrowAppointments.map(app => (
-                           <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center">
+                           <div key={app.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                                <div>
                                  <p className="font-semibold text-slate-700">{app.patientName}</p>
                                  <p className="text-sm text-slate-500">Horário: {app.time}</p>
@@ -83,8 +83,8 @@ const MyDayModal: React.FC<MyDayModalProps> = ({ onClose, appointments }) => {
                 )}
             </section>
         </div>
-        <div className="flex justify-end mt-6 pt-4 border-t">
-          <button onClick={onClose} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700">Fechar</button>
+        <div className="flex justify-end p-6 border-t border-slate-100">
+          <button onClick={onClose} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 font-medium shadow-sm transition-colors">Fechar</button>
         </div>
       </div>
     </div>

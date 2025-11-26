@@ -30,6 +30,7 @@ import WelcomeModal from './components/WelcomeModal';
 import BirthdayModal from './components/BirthdayModal';
 import ReminderCheckModal from './components/ReminderCheckModal';
 import HelpModule from './components/HelpModule';
+import { mockPatients, mockAppointments, mockNotes, mockObservations, mockTransactions, mockConsultationTypes } from './data/mockData';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -125,6 +126,32 @@ const App: React.FC = () => {
       document.removeEventListener('touchstart', handleInteraction);
     };
   }, []);
+
+  // Strict Onboarding Enforcement
+  useEffect(() => {
+    if (isAuthenticated && !isMasterAccessSession) {
+      const isDefaultPassword = password === '2577';
+      const hasNoProfileImage = !profileImage;
+      const needsSetup = isDefaultPassword || hasNoProfileImage;
+
+      if (needsSetup) {
+        if (!isOnboarding) setIsOnboarding(true);
+        
+        // If user is not in settings, ensure they see the Welcome Modal or are guided to it
+        if (activeView !== 'settings') {
+             if (!isWelcomeModalOpen) setIsWelcomeModalOpen(true);
+        } else {
+             // We are in settings, ensure modal is gone so they can interact
+             if (isWelcomeModalOpen) setIsWelcomeModalOpen(false);
+        }
+      } else {
+        // If setup complete, ensure we exit onboarding mode
+        if (isOnboarding) setIsOnboarding(false);
+        // Ensure welcome modal is closed if requirements are met
+        if (isWelcomeModalOpen) setIsWelcomeModalOpen(false);
+      }
+    }
+  }, [isAuthenticated, password, profileImage, activeView, isMasterAccessSession, isOnboarding, isWelcomeModalOpen]);
 
   const logAction = useCallback((action: string, details: string) => {
     const newLog: AuditLogEntry = {
@@ -257,19 +284,31 @@ const App: React.FC = () => {
     
     if (isMasterAccess) {
         setIsMasterAccessSession(true);
-        addToast('Acesso Mestre concedido.', 'info');
+        addToast('Acesso Mestre: Dados de teste carregados.', 'info');
         
+        // --- LOAD MOCK DATA ONLY ON MASTER ACCESS ---
+        setPatients(mockPatients);
+        setAppointments(mockAppointments);
+        setNotes(mockNotes);
+        setObservations(mockObservations);
+        setTransactions(mockTransactions);
+        setConsultationTypes(prev => {
+            const existingIds = new Set(prev.map(ct => ct.id));
+            const newTypes = mockConsultationTypes.filter(ct => !existingIds.has(ct.id));
+            return [...prev, ...newTypes];
+        });
+        // --------------------------------------------
+
         // Skip Onboarding check and go directly to birthday/reminders
         runBirthdayCheck();
     } else {
         addToast('Bem-vinda de volta!', 'success');
         
-        // Onboarding Check for regular login
         const isDefaultPassword = password === '2577';
         const hasNoProfileImage = !profileImage;
 
         if (isDefaultPassword || hasNoProfileImage) {
-            // Show welcome modal if setup is incomplete
+            // Effect will handle enforcing onboarding state and modal
             setIsWelcomeModalOpen(true);
         } else {
             runBirthdayCheck();
@@ -287,8 +326,13 @@ const App: React.FC = () => {
   };
 
   const handleCloseWelcome = () => {
+      // If enforcing onboarding, we don't proceed to checks yet, 
+      // the modal shouldn't really be closable without setup, 
+      // but if it is, we just close it. The Effect will likely reopen it if not in settings.
       setIsWelcomeModalOpen(false);
-      runBirthdayCheck(); // Next step
+      if (!isOnboarding) {
+          runBirthdayCheck(); // Next step only if not onboarding
+      }
   };
 
   const handleCloseBirthday = () => {
@@ -304,6 +348,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsMasterAccessSession(false);
+    setIsOnboarding(false); // Reset onboarding state
     addToast('Sessão encerrada com segurança.', 'info');
   };
 
@@ -486,13 +531,13 @@ const App: React.FC = () => {
             target={passwordModalTarget as 'settings' | null} 
           />
         )}
-        {showTodayModal && !isWelcomeModalOpen && !isBirthdayModalOpen && !isReminderModalOpen && (
+        {showTodayModal && !isWelcomeModalOpen && !isBirthdayModalOpen && !isReminderModalOpen && !isOnboarding && (
           <TodayAppointmentsModal
             appointments={appointments}
             onClose={() => setShowTodayModal(false)}
           />
         )}
-        {isMyDayModalOpen && (
+        {isMyDayModalOpen && !isOnboarding && (
           <MyDayModal
             appointments={appointments}
             onClose={() => setIsMyDayModalOpen(false)}
@@ -527,6 +572,7 @@ const App: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
           onLogout={handleLogout}
           profileImage={profileImage}
+          isOnboarding={isOnboarding}
         />
 
         {/* Main Content Wrapper */}
@@ -539,32 +585,35 @@ const App: React.FC = () => {
                       <button 
                           onClick={() => setIsSidebarOpen(true)}
                           className="p-2 -ml-2 rounded-md lg:hidden text-slate-600 hover:bg-slate-100"
+                          disabled={isOnboarding}
                       >
                           <MenuIcon />
                       </button>
                   </div>
 
-                  <div className="flex items-center gap-2 sm:gap-4">
-                      <div className="hidden sm:block text-slate-700">
-                          <HeaderClock />
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                          <button 
-                          onClick={() => setIsNotificationModalOpen(true)}
-                          className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative"
-                          aria-label="Notificações"
-                          >
-                          <BellIcon />
-                          </button>
-                          <button 
-                          onClick={() => setIsMyDayModalOpen(true)}
-                          className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
-                          aria-label="Meu Dia"
-                          >
-                          <MyDayIcon />
-                          </button>
-                      </div>
-                  </div>
+                  {!isOnboarding && (
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <div className="hidden sm:block text-slate-700">
+                            <HeaderClock />
+                        </div>
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            <button 
+                            onClick={() => setIsNotificationModalOpen(true)}
+                            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative"
+                            aria-label="Notificações"
+                            >
+                            <BellIcon />
+                            </button>
+                            <button 
+                            onClick={() => setIsMyDayModalOpen(true)}
+                            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                            aria-label="Meu Dia"
+                            >
+                            <MyDayIcon />
+                            </button>
+                        </div>
+                    </div>
+                  )}
               </div>
           </header>
 
