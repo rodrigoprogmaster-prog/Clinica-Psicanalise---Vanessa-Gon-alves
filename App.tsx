@@ -61,6 +61,10 @@ const App: React.FC = () => {
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [pendingReminders, setPendingReminders] = useState<Appointment[]>([]);
   
+  // Sidebar Visibility State (Desktop)
+  const [childModalOpen, setChildModalOpen] = useState(false);
+  const [isSidebarHidden, setIsSidebarHidden] = useState(false);
+
   // Toast State
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
@@ -97,20 +101,15 @@ const App: React.FC = () => {
       const doc = document.documentElement;
       if (!document.fullscreenElement) {
         doc.requestFullscreen().catch(err => {
-          // Fullscreen requests often fail if not triggered by user interaction.
-          // We log it silently or handle gracefully.
           console.log("Fullscreen request intercepted:", err);
         });
       }
     };
 
-    // Attempt on mount (might fail depending on browser policy)
     enterFullScreen();
 
-    // Attempt on first interaction
     const handleInteraction = () => {
       enterFullScreen();
-      // Remove listeners once triggered to avoid repeated calls
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('keydown', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);
@@ -127,31 +126,36 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Strict Onboarding Enforcement
+  // Update sidebar visibility based on any modal being open
   useEffect(() => {
-    if (isAuthenticated && !isMasterAccessSession) {
-      const isDefaultPassword = password === '2577';
-      const hasNoProfileImage = !profileImage;
-      const needsSetup = isDefaultPassword || hasNoProfileImage;
+    const anyAppModalOpen = isWelcomeModalOpen || 
+                            isBirthdayModalOpen || 
+                            isReminderModalOpen || 
+                            isPasswordModalOpen || 
+                            showTodayModal || 
+                            isMyDayModalOpen || 
+                            isNotificationModalOpen;
+    
+    setIsSidebarHidden(anyAppModalOpen || childModalOpen);
+  }, [
+    isWelcomeModalOpen, 
+    isBirthdayModalOpen, 
+    isReminderModalOpen, 
+    isPasswordModalOpen, 
+    showTodayModal, 
+    isMyDayModalOpen, 
+    isNotificationModalOpen,
+    childModalOpen
+  ]);
 
-      if (needsSetup) {
-        if (!isOnboarding) setIsOnboarding(true);
-        
-        // If user is not in settings, ensure they see the Welcome Modal or are guided to it
-        if (activeView !== 'settings') {
-             if (!isWelcomeModalOpen) setIsWelcomeModalOpen(true);
-        } else {
-             // We are in settings, ensure modal is gone so they can interact
-             if (isWelcomeModalOpen) setIsWelcomeModalOpen(false);
-        }
-      } else {
-        // If setup complete, ensure we exit onboarding mode
-        if (isOnboarding) setIsOnboarding(false);
-        // Ensure welcome modal is closed if requirements are met
-        if (isWelcomeModalOpen) setIsWelcomeModalOpen(false);
-      }
-    }
-  }, [isAuthenticated, password, profileImage, activeView, isMasterAccessSession, isOnboarding, isWelcomeModalOpen]);
+  // Reset child modal state when navigating
+  useEffect(() => {
+    setChildModalOpen(false);
+  }, [activeView]);
+
+  const handleChildModalStateChange = useCallback((isOpen: boolean) => {
+    setChildModalOpen(isOpen);
+  }, []);
 
   const logAction = useCallback((action: string, details: string) => {
     const newLog: AuditLogEntry = {
@@ -168,10 +172,9 @@ const App: React.FC = () => {
     setActiveView(view);
     if (view !== 'pep') {
       setSelectedPatientId(null);
-      setIsConsultationMode(false); // Reset mode when leaving PEP
-      setShowStartConsultationButton(true); // Reset visibility
+      setIsConsultationMode(false); 
+      setShowStartConsultationButton(true); 
     }
-    // If navigating away from settings, reset settings unlock AND onboarding mode
     if (view !== 'settings') {
         setIsSettingsUnlocked(false);
         setIsOnboarding(false);
@@ -204,7 +207,6 @@ const App: React.FC = () => {
     setPasswordModalTarget(null);
   };
 
-  // Updated to accept consultation mode flag and start button visibility
   const viewPatientPEP = useCallback((patientId: string, isConsultation: boolean = false, showStartButton: boolean = true) => {
     setSelectedPatientId(patientId);
     setIsConsultationMode(isConsultation);
@@ -222,7 +224,6 @@ const App: React.FC = () => {
 
   // --- SEQUENTIAL MODAL LOGIC ---
 
-  // 4. Check Today's Appointments
   const checkTodayAppointments = useCallback(() => {
       const todayString = getTodayString();
       const todayAppointments = appointments.filter(app => app.date === todayString && app.status === 'scheduled');
@@ -231,7 +232,6 @@ const App: React.FC = () => {
       }
   }, [appointments]);
 
-  // 3. Check Reminders for Tomorrow
   const checkReminders = useCallback(() => {
       const tomorrowString = getTomorrowString();
       const pending = appointments.filter(app => 
@@ -244,22 +244,18 @@ const App: React.FC = () => {
           setPendingReminders(pending);
           setIsReminderModalOpen(true);
       } else {
-          // If no reminders, proceed to check today's appointments
           checkTodayAppointments();
       }
   }, [appointments, checkTodayAppointments]);
 
-  // 2. Check Birthdays
   const runBirthdayCheck = useCallback(() => {
       const today = new Date();
       const currentDay = today.getDate();
-      const currentMonth = today.getMonth() + 1; // 0-11 to 1-12
+      const currentMonth = today.getMonth() + 1; 
       
       const todaysBirthdays = patients.filter(p => {
           if (!p.isActive || !p.dateOfBirth) return false;
-          // Use split to avoid timezone issues with Date object parsing
           const parts = p.dateOfBirth.split('-');
-          // Expecting YYYY-MM-DD
           if (parts.length !== 3) return false;
           
           const pMonth = parseInt(parts[1], 10);
@@ -272,7 +268,6 @@ const App: React.FC = () => {
           setBirthdayPatients(todaysBirthdays);
           setIsBirthdayModalOpen(true);
       } else {
-          // If no birthdays, proceed to check reminders
           checkReminders();
       }
   }, [patients, checkReminders]);
@@ -283,10 +278,10 @@ const App: React.FC = () => {
     navigateTo('dashboard');
     
     if (isMasterAccess) {
+        // --- MASTER ACCESS ONLY: Load Mock Data ---
         setIsMasterAccessSession(true);
         addToast('Acesso Mestre: Dados de teste carregados.', 'info');
         
-        // --- LOAD MOCK DATA ONLY ON MASTER ACCESS ---
         setPatients(mockPatients);
         setAppointments(mockAppointments);
         setNotes(mockNotes);
@@ -297,20 +292,21 @@ const App: React.FC = () => {
             const newTypes = mockConsultationTypes.filter(ct => !existingIds.has(ct.id));
             return [...prev, ...newTypes];
         });
-        // --------------------------------------------
-
-        // Skip Onboarding check and go directly to birthday/reminders
+        
         runBirthdayCheck();
     } else {
+        // --- REGULAR USER: Do NOT load mock data ---
         addToast('Bem-vinda de volta!', 'success');
         
+        // Verifica se ainda está usando a senha padrão '2577'
         const isDefaultPassword = password === '2577';
         const hasNoProfileImage = !profileImage;
 
+        // Se senha for padrão OU não tiver foto, força o modal de boas-vindas/configuração
         if (isDefaultPassword || hasNoProfileImage) {
-            // Effect will handle enforcing onboarding state and modal
             setIsWelcomeModalOpen(true);
         } else {
+            // Se tudo configurado, segue fluxo normal
             runBirthdayCheck();
         }
     }
@@ -326,30 +322,32 @@ const App: React.FC = () => {
   };
 
   const handleCloseWelcome = () => {
-      // If enforcing onboarding, we don't proceed to checks yet, 
-      // the modal shouldn't really be closable without setup, 
-      // but if it is, we just close it. The Effect will likely reopen it if not in settings.
       setIsWelcomeModalOpen(false);
-      if (!isOnboarding) {
-          runBirthdayCheck(); // Next step only if not onboarding
-      }
+      runBirthdayCheck();
   };
 
   const handleCloseBirthday = () => {
       setIsBirthdayModalOpen(false);
-      checkReminders(); // Next step
+      checkReminders();
   };
 
   const handleCloseReminder = () => {
       setIsReminderModalOpen(false);
-      checkTodayAppointments(); // Next step
+      checkTodayAppointments();
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsMasterAccessSession(false);
-    setIsOnboarding(false); // Reset onboarding state
     addToast('Sessão encerrada com segurança.', 'info');
+  };
+
+  const handleOnboardingComplete = () => {
+      // Force immediate logout without extra messages, handled by Settings module if needed
+      setIsAuthenticated(false);
+      setIsMasterAccessSession(false);
+      setIsOnboarding(false);
+      setIsSettingsUnlocked(false);
   };
 
   const handleMarkReminderSent = (appointmentId: string) => {
@@ -386,6 +384,7 @@ const App: React.FC = () => {
                   appointments={appointments}
                   onLogAction={logAction}
                   onShowToast={addToast}
+                  onModalStateChange={handleChildModalStateChange}
                 />;
       case 'schedule':
         return <AppointmentScheduler 
@@ -400,6 +399,7 @@ const App: React.FC = () => {
                   setNotificationLogs={setNotificationLogs}
                   onLogAction={logAction}
                   onShowToast={addToast}
+                  onModalStateChange={handleChildModalStateChange}
                 />;
       case 'pep':
         return <ElectronicHealthRecord 
@@ -419,6 +419,7 @@ const App: React.FC = () => {
                 onLogAction={logAction}
                 onShowToast={addToast}
                 signatureImage={signatureImage}
+                onModalStateChange={handleChildModalStateChange}
               />;
       case 'financial':
         return <FinancialModule 
@@ -431,6 +432,7 @@ const App: React.FC = () => {
                   onShowToast={addToast}
                   patients={patients}
                   signatureImage={signatureImage}
+                  onModalStateChange={handleChildModalStateChange}
                 />;
       case 'admin':
         return <AdminModule onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
@@ -460,6 +462,8 @@ const App: React.FC = () => {
                   onShowToast={addToast}
                   onboardingMode={isOnboarding}
                   isMasterAccess={isMasterAccessSession}
+                  onModalStateChange={handleChildModalStateChange}
+                  onCompleteOnboarding={handleOnboardingComplete}
                 />;
       case 'managementDashboard':
         return <ManagementDashboard onNavigate={navigateTo} patients={patients} appointments={appointments} transactions={transactions} />;
@@ -482,6 +486,7 @@ const App: React.FC = () => {
                   transactions={transactions}
                   patients={patients}
                   onNavigateToPatients={() => navigateTo('patients')} 
+                  onModalStateChange={handleChildModalStateChange}
                 />;
     }
   };
@@ -531,13 +536,13 @@ const App: React.FC = () => {
             target={passwordModalTarget as 'settings' | null} 
           />
         )}
-        {showTodayModal && !isWelcomeModalOpen && !isBirthdayModalOpen && !isReminderModalOpen && !isOnboarding && (
+        {showTodayModal && !isWelcomeModalOpen && !isBirthdayModalOpen && !isReminderModalOpen && (
           <TodayAppointmentsModal
             appointments={appointments}
             onClose={() => setShowTodayModal(false)}
           />
         )}
-        {isMyDayModalOpen && !isOnboarding && (
+        {isMyDayModalOpen && (
           <MyDayModal
             appointments={appointments}
             onClose={() => setIsMyDayModalOpen(false)}
@@ -572,48 +577,45 @@ const App: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
           onLogout={handleLogout}
           profileImage={profileImage}
-          isOnboarding={isOnboarding}
+          isHidden={isSidebarHidden}
         />
 
         {/* Main Content Wrapper */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           
           {/* Top Header */}
-          <header className="bg-white shadow-sm z-30 border-b border-slate-200">
+          <header className={`bg-white shadow-sm z-30 border-b border-slate-200 transition-all duration-300 ${isSidebarHidden ? 'hidden' : 'block'}`}>
               <div className="flex justify-between items-center px-4 sm:px-6 py-3">
                   <div className="flex items-center gap-3">
                       <button 
                           onClick={() => setIsSidebarOpen(true)}
                           className="p-2 -ml-2 rounded-md lg:hidden text-slate-600 hover:bg-slate-100"
-                          disabled={isOnboarding}
                       >
                           <MenuIcon />
                       </button>
                   </div>
 
-                  {!isOnboarding && (
-                    <div className="flex items-center gap-2 sm:gap-4">
-                        <div className="hidden sm:block text-slate-700">
-                            <HeaderClock />
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-2">
-                            <button 
-                            onClick={() => setIsNotificationModalOpen(true)}
-                            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative"
-                            aria-label="Notificações"
-                            >
-                            <BellIcon />
-                            </button>
-                            <button 
-                            onClick={() => setIsMyDayModalOpen(true)}
-                            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
-                            aria-label="Meu Dia"
-                            >
-                            <MyDayIcon />
-                            </button>
-                        </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 sm:gap-4">
+                      <div className="hidden sm:block text-slate-700">
+                          <HeaderClock />
+                      </div>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                          <button 
+                          onClick={() => setIsNotificationModalOpen(true)}
+                          className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative"
+                          aria-label="Notificações"
+                          >
+                          <BellIcon />
+                          </button>
+                          <button 
+                          onClick={() => setIsMyDayModalOpen(true)}
+                          className="p-2 rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                          aria-label="Meu Dia"
+                          >
+                          <MyDayIcon />
+                          </button>
+                      </div>
+                  </div>
               </div>
           </header>
 

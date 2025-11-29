@@ -37,6 +37,7 @@ interface AppointmentSchedulerProps {
     setNotificationLogs: React.Dispatch<React.SetStateAction<NotificationLog[]>>;
     onLogAction: (action: string, details: string) => void;
     onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    onModalStateChange?: (isOpen: boolean) => void;
 }
 
 const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({ 
@@ -50,7 +51,8 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({
     notificationLogs,
     setNotificationLogs,
     onLogAction,
-    onShowToast
+    onShowToast,
+    onModalStateChange
 }) => {
   const [modalState, setModalState] = useState<{ appointment: Appointment; action: 'completed' | 'canceled' } | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -74,6 +76,17 @@ const AppointmentScheduler: React.FC<AppointmentSchedulerProps> = ({
     const timer = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(timer);
   }, []);
+
+  // Modal State Notification for Sidebar
+  const hasOpenModal = !!modalState || isScheduleModalOpen || isCalendarViewModalOpen || isConfirmationModalOpen || !!pendingRescheduleData || (whatsappModalData && whatsappModalData.isOpen);
+  useEffect(() => {
+    if (onModalStateChange) {
+      onModalStateChange(Boolean(hasOpenModal));
+    }
+    return () => {
+      if (onModalStateChange) onModalStateChange(false);
+    };
+  }, [hasOpenModal, onModalStateChange]);
 
   const handleSaveAppointment = (appointmentData: { patientId: string; date: string; time: string; consultationTypeId: string }) => {
     if (reschedulingAppointment) {

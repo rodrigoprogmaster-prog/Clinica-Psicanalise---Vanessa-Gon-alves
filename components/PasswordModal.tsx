@@ -27,50 +27,45 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, corre
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 transform transition-transform duration-300 animate-slide-up overflow-hidden"
+        className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full mx-4 transform transition-transform duration-300 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800">Acesso Restrito</h3>
-        </div>
-        
-        <div className="p-6">
-            <p className="text-slate-600 mb-6">Por favor, insira a senha para acessar {targetText}.</p>
-            <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-                <label htmlFor="password-input" className="sr-only">Senha</label>
-                <input
-                id="password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`w-full p-3 border rounded-lg text-center bg-white focus:ring-2 focus:ring-indigo-500 transition-all ${error ? 'border-red-500' : 'border-slate-300'}`}
-                placeholder="••••••"
-                autoFocus
-                />
-                {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
-            </div>
-            <div className="flex justify-end gap-3 mt-8">
-                <button 
-                type="button" 
-                onClick={onClose} 
-                className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
-                >
-                Cancelar
-                </button>
-                <button 
-                type="submit"
-                className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
-                >
-                Acessar
-                </button>
-            </div>
-            </form>
-        </div>
+        <h3 className="text-xl font-bold text-slate-800 mb-2">Acesso Restrito</h3>
+        <p className="text-slate-600 mb-6">Por favor, insira a senha para acessar {targetText}.</p>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="password-input" className="sr-only">Senha</label>
+            <input
+              id="password-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full p-3 border rounded-md text-center bg-white ${error ? 'border-red-500' : 'border-slate-300'}`}
+              placeholder="••••••"
+              autoFocus
+            />
+            {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+          </div>
+          <div className="flex justify-end gap-3 mt-8">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              Acessar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

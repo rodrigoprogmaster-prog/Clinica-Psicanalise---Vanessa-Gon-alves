@@ -15,11 +15,20 @@ interface DashboardProps {
   transactions: Transaction[];
   patients: Patient[];
   onNavigateToPatients: () => void;
+  onModalStateChange?: (isOpen: boolean) => void;
 }
 
 type SummaryType = 'monthlyRevenue' | 'weeklyIncome' | 'monthlyAppointments' | 'activePatients' | null;
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, transactions, patients, onViewPEP, onNavigateToPatients }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  onNavigate, 
+  appointments, 
+  transactions, 
+  patients, 
+  onViewPEP, 
+  onNavigateToPatients,
+  onModalStateChange 
+}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSummary, setSelectedSummary] = useState<SummaryType>(null);
 
@@ -27,6 +36,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appointments, transac
     const timer = setTimeout(() => setIsLoading(false), 300);
     return () => clearTimeout(timer);
   }, []);
+
+  // Update sidebar visibility based on modal state
+  useEffect(() => {
+    if (onModalStateChange) {
+      onModalStateChange(!!selectedSummary);
+    }
+    return () => {
+        if (onModalStateChange) onModalStateChange(false);
+    };
+  }, [selectedSummary, onModalStateChange]);
 
   // Weekly Summary Logic (Next 7 Days including Today)
   const weeklySummary = useMemo(() => {

@@ -20,6 +20,7 @@ interface FinancialModuleProps {
   onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
   patients: Patient[];
   signatureImage?: string | null;
+  onModalStateChange?: (isOpen: boolean) => void;
 }
 
 const FinancialModule: React.FC<FinancialModuleProps> = ({
@@ -31,13 +32,14 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
   onLogAction,
   onShowToast,
   patients,
-  signatureImage
+  signatureImage,
+  onModalStateChange
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   
-  // Filter States
-  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
+  // Filter States - Default to 'all' to show full history
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly' | 'all'>('all');
   const [filterDate, setFilterDate] = useState(getTodayString());
   const [filterMonth, setFilterMonth] = useState(() => {
       const now = new Date();
@@ -62,6 +64,17 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // Modal State Notification for Sidebar
+  const hasOpenModal = isModalOpen || !!transactionToDelete;
+  useEffect(() => {
+    if (onModalStateChange) {
+      onModalStateChange(hasOpenModal);
+    }
+    return () => {
+      if (onModalStateChange) onModalStateChange(false);
+    };
+  }, [hasOpenModal, onModalStateChange]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchesPatient = filteredPatient ? t.patientId === filteredPatient.id : true;
@@ -70,13 +83,14 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
       let matchesDate = true;
       if (filterMode === 'daily') {
           matchesDate = filterDate ? t.date === filterDate : true;
-      } else {
+      } else if (filterMode === 'monthly') {
           // Monthly filter (YYYY-MM)
           if (filterMonth) {
               const tDate = t.date.substring(0, 7); // Extract YYYY-MM from YYYY-MM-DD
               matchesDate = tDate === filterMonth;
           }
       }
+      // If filterMode is 'all', matchesDate remains true
 
       return matchesPatient && matchesType && matchesDate;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -168,49 +182,58 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
     }
   };
 
-  const handlePrintReceipt = (t: Transaction) => {
-    document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen denied:", err));
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        const todayString = new Date().toISOString().slice(0, 10);
-        printWindow.document.title = `Recibo - ${t.description} - ${todayString}`;
-        
-        const signatureContent = signatureImage 
-          ? `<img src="${signatureImage}" class="sig-img" alt="Assinatura" />` 
-          : `<div class="line"></div>`;
-
-        const styles = `
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-          body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #444; min-height: 100vh; display: flex; justify-content: center; align-items: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .receipt-container { width: 80%; max-width: 700px; border: 2px solid #3730a3; padding: 40px; background-color: rgba(255, 255, 255, 0.95); }
-          .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 30px; }
-          .header h1 { color: #3730a3; margin: 0; font-size: 28px; letter-spacing: 2px; }
-          .content { font-size: 16px; line-height: 2; }
-          .signature { margin-top: 60px; text-align: center; }
-          .line { border-top: 1px solid #333; width: 60%; margin: 0 auto 10px auto; }
-          .sig-img { max-height: 80px; display: block; margin: 0 auto 5px auto; max-width: 200px; }
-        `;
-        const reportHTML = `
-          <html><head><title>Recibo</title><style>${styles}</style></head>
-              <body>
-                  <div class="receipt-container">
-                      <div class="header"><h1>RECIBO</h1></div>
-                      <div class="content">
-                          <p>Recebi referente a <strong>${t.description}</strong></p>
-                          <p>A importância de <strong>${t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
-                          <p>Data do pagamento: ${new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
-                      </div>
-                      <div class="signature">${signatureContent}<p><strong>Vanessa Gonçalves</strong></p><p>Psicanalista Clínica</p></div>
-                  </div>
-              </body>
-          </html>
-        `;
-        printWindow.document.write(reportHTML);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+  const handlePrintReceipt = async (t: Transaction) => {
+    // Fix Fullscreen conflict
+    if (document.fullscreenElement) {
+      try {
+          await document.exitFullscreen();
+      } catch (e) {
+          console.error("Error exiting fullscreen", e);
+      }
     }
+
+    setTimeout(() => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const todayString = new Date().toISOString().slice(0, 10);
+            printWindow.document.title = `Recibo - ${t.description} - ${todayString}`;
+            
+            const signatureContent = signatureImage 
+              ? `<img src="${signatureImage}" class="sig-img" alt="Assinatura" />` 
+              : `<div class="line"></div>`;
+
+            const styles = `
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+              body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #444; min-height: 100vh; display: flex; justify-content: center; align-items: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .receipt-container { width: 80%; max-width: 700px; border: 2px solid #3730a3; padding: 40px; background-color: rgba(255, 255, 255, 0.95); }
+              .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 30px; }
+              .header h1 { color: #3730a3; margin: 0; font-size: 28px; letter-spacing: 2px; }
+              .content { font-size: 16px; line-height: 2; }
+              .signature { margin-top: 60px; text-align: center; }
+              .line { border-top: 1px solid #333; width: 60%; margin: 0 auto 10px auto; }
+              .sig-img { max-height: 80px; display: block; margin: 0 auto 5px auto; max-width: 200px; }
+            `;
+            const reportHTML = `
+              <html><head><title>Recibo</title><style>${styles}</style></head>
+                  <body>
+                      <div class="receipt-container">
+                          <div class="header"><h1>RECIBO</h1></div>
+                          <div class="content">
+                              <p>Recebi referente a <strong>${t.description}</strong></p>
+                              <p>A importância de <strong>${t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
+                              <p>Data do pagamento: ${new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                          </div>
+                          <div class="signature">${signatureContent}<p><strong>Vanessa Gonçalves</strong></p><p>Psicanalista Clínica</p></div>
+                      </div>
+                  </body>
+              </html>
+            `;
+            printWindow.document.write(reportHTML);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        }
+    }, 100);
   };
 
   const getMonthLabel = (ym: string) => {
@@ -218,6 +241,13 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
       const [y, m] = ym.split('-');
       const date = new Date(parseInt(y), parseInt(m) - 1, 1);
       return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  const getTimeFilterLabel = () => {
+      if (filterMode === 'all') return 'Período Completo';
+      if (filterMode === 'daily') return filterDate ? new Date(filterDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'Todos os dias';
+      if (filterMode === 'monthly') return filterMonth ? getMonthLabel(filterMonth) : 'Todos os meses';
+      return '';
   };
 
   return (
@@ -287,6 +317,12 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
         <div className="flex items-center gap-3 bg-white border border-slate-200 p-1.5 rounded-lg shadow-sm">
             <div className="flex bg-slate-100 rounded p-0.5">
                 <button 
+                    onClick={() => setFilterMode('all')}
+                    className={`px-3 py-1 text-xs font-bold uppercase rounded transition-all ${filterMode === 'all' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
+                >
+                    Todos
+                </button>
+                <button 
                     onClick={() => setFilterMode('daily')}
                     className={`px-3 py-1 text-xs font-bold uppercase rounded transition-all ${filterMode === 'daily' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
                 >
@@ -300,14 +336,16 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                 </button>
             </div>
             
-            {filterMode === 'daily' ? (
+            {filterMode === 'daily' && (
                 <input 
                   type="date" 
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
                   className="p-1 border-none text-sm bg-transparent focus:ring-0 text-slate-700 font-medium cursor-pointer"
                 />
-            ) : (
+            )} 
+            
+            {filterMode === 'monthly' && (
                 <input 
                   type="month" 
                   value={filterMonth}
@@ -323,10 +361,7 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
         <h3 className="text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2">
             Histórico de Transações
             <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                {filterMode === 'daily' 
-                    ? (filterDate ? new Date(filterDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'Todos os dias') 
-                    : (filterMonth ? getMonthLabel(filterMonth) : 'Todos os meses')
-                }
+                {getTimeFilterLabel()}
             </span>
         </h3>
         <table className="min-w-full bg-white border border-slate-200">
@@ -398,18 +433,16 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold text-slate-800">{modalMode === 'add' ? 'Nova Transação' : 'Editar Transação'}</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-                        <CloseIcon />
-                    </button>
+                    <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100 text-slate-500"><CloseIcon /></button>
                 </div>
                 
-                <div className="p-6 space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input 
@@ -437,44 +470,44 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Descrição</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
                         <input 
                             type="text" 
                             value={currentTransaction.description} 
                             onChange={(e) => setCurrentTransaction(prev => ({...prev, description: e.target.value}))}
-                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
                             placeholder="Ex: Consulta, Aluguel, Material..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Valor</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Valor</label>
                         <input 
                             type="text" 
                             value={amountInput} 
                             onChange={handleAmountChange}
-                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
                             placeholder="R$ 0,00"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Data</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
                         <input 
                             type="date" 
                             value={currentTransaction.date} 
                             onChange={(e) => setCurrentTransaction(prev => ({...prev, date: e.target.value}))}
-                            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
                         />
                     </div>
 
                     {!filteredPatient && (
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Vincular a Paciente (Opcional)</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a Paciente (Opcional)</label>
                             <select 
                                 value={currentTransaction.patientId || ''} 
                                 onChange={(e) => setCurrentTransaction(prev => ({...prev, patientId: e.target.value}))}
-                                className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                className="w-full p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 border-slate-300"
                             >
                                 <option value="">Nenhum</option>
                                 {patients.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
@@ -485,9 +518,9 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
                     )}
                 </div>
 
-                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-                    <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Cancelar</button>
-                    <button onClick={handleSaveTransaction} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm">Salvar</button>
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Cancelar</button>
+                    <button onClick={handleSaveTransaction} className="px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">Salvar</button>
                 </div>
             </div>
         </div>
@@ -495,26 +528,21 @@ const FinancialModule: React.FC<FinancialModuleProps> = ({
 
       {/* Delete Confirmation Modal */}
       {transactionToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-100">
-                    <h3 className="text-xl font-bold text-slate-800">Excluir Transação</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Excluir Transação</h3>
+                <p className="text-slate-600 mb-6">Tem certeza que deseja excluir este registro? A ação não pode ser desfeita.</p>
+                <div className="bg-slate-50 p-3 rounded border border-slate-200 mb-6 text-sm">
+                    <p><strong>Descrição:</strong> {transactionToDelete.description}</p>
+                    <p><strong>Valor:</strong> {transactionToDelete.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
                 </div>
-                <div className="p-6">
-                    <p className="text-slate-600 mb-4">Tem certeza que deseja excluir este registro? A ação não pode ser desfeita.</p>
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
-                        <p><strong>Descrição:</strong> {transactionToDelete.description}</p>
-                        <p><strong>Valor:</strong> {transactionToDelete.amount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
-                    </div>
-                </div>
-                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-                    <button onClick={() => setTransactionToDelete(null)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Cancelar</button>
-                    <button onClick={handleDeleteTransaction} className="px-6 py-2.5 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors font-medium shadow-sm">Sim, excluir</button>
+                <div className="flex justify-end gap-3">
+                    <button onClick={() => setTransactionToDelete(null)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">Cancelar</button>
+                    <button onClick={handleDeleteTransaction} className="px-4 py-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm">Excluir</button>
                 </div>
             </div>
         </div>
       )}
-
     </ModuleContainer>
   );
 };

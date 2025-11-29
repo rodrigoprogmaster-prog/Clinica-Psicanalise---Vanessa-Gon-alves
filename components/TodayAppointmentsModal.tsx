@@ -23,38 +23,38 @@ const TodayAppointmentsModal: React.FC<TodayAppointmentsModalProps> = ({ onClose
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 transform transition-transform duration-300 animate-slide-up overflow-hidden"
+        className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-transform duration-300 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+        <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-slate-800">Consultas de Hoje</h3>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
                 <CloseIcon />
             </button>
         </div>
         
-        <div className="p-6 space-y-3 max-h-80 overflow-y-auto">
+        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
             {todayAppointments.map(app => (
-                <div key={app.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex justify-between items-center">
+                <div key={app.id} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center">
                     <div>
                         <p className="font-semibold text-slate-700">{app.patientName}</p>
                         <p className="text-sm text-slate-500">Horário: {app.time}</p>
                     </div>
-                    <span className="bg-violet-100 text-violet-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    <span className="bg-violet-100 text-violet-800 text-xs font-semibold px-2 py-1 rounded-full">
                         Agendada
                     </span>
                 </div>
             ))}
         </div>
 
-        <div className="flex justify-end p-6 border-t border-slate-100">
+        <div className="flex justify-end mt-6">
           <button 
             onClick={onClose} 
-            className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+            className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
           >
             Fechar
           </button>

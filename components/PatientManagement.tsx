@@ -20,6 +20,7 @@ interface PatientManagementProps {
   appointments: Appointment[];
   onLogAction: (action: string, details: string) => void;
   onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  onModalStateChange?: (isOpen: boolean) => void;
 }
 
 const Tooltip: React.FC<{ text: string }> = ({ text }) => (
@@ -64,7 +65,9 @@ const formatPhoneNumber = (value: string) => {
 };
 
 
-const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onViewPEP, onViewFinancials, patients, setPatients, appointments, onLogAction, onShowToast }) => {
+const PatientManagement: React.FC<PatientManagementProps> = ({ 
+  onNavigate, onViewPEP, onViewFinancials, patients, setPatients, appointments, onLogAction, onShowToast, onModalStateChange 
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
@@ -93,6 +96,17 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
         }, 300);
     }
   }, [isModalOpen]);
+
+  // Handle modal visibility for parent (Sidebar)
+  const hasOpenModal = isModalOpen || !!patientToDelete || !!patientToToggleStatus;
+  useEffect(() => {
+    if (onModalStateChange) {
+      onModalStateChange(hasOpenModal);
+    }
+    return () => {
+      if (onModalStateChange) onModalStateChange(false);
+    };
+  }, [hasOpenModal, onModalStateChange]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -284,30 +298,29 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60] transition-opacity duration-300 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 transform transition-transform duration-300 animate-slide-up max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[60] transition-opacity duration-300 animate-fade-in">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-transform duration-300 animate-slide-up max-h-[90vh] overflow-y-auto flex flex-col" onClick={(e) => e.stopPropagation()}>
             
-            {/* Standard Header */}
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50 rounded-t-lg">
                 <div>
                     <h3 className="text-xl font-bold text-slate-800">{modalMode === 'add' ? 'Cadastrar Novo Paciente' : 'Editar Cadastro'}</h3>
                     <p className="text-sm text-slate-500 mt-1">Preencha os dados abaixo para {modalMode === 'add' ? 'incluir um novo' : 'atualizar o'} registro.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
                     <CloseIcon />
                 </button>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-grow">
+            <div className="p-6 sm:p-8">
             {formStep === 'details' && (
-              <div className="space-y-5">
+              <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                   <div className="sm:col-span-2">
                     <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-1">Nome Completo</label>
                     <input 
                         type="text" id="name" name="name" 
                         value={formData.name} onChange={handleInputChange} 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.name ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.name ? 'border-red-500' : 'border-slate-300'}`} 
                         placeholder="Ex: Maria da Silva"
                     />
                     {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
@@ -318,7 +331,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                     <input 
                         type="email" id="email" name="email" 
                         value={formData.email} onChange={handleInputChange} 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.email ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.email ? 'border-red-500' : 'border-slate-300'}`} 
                         placeholder="exemplo@email.com"
                     />
                     {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
@@ -329,7 +342,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                         type="tel" id="phone" name="phone" 
                         value={formData.phone} onChange={handleInputChange} 
                         placeholder="(XX) 9XXXX-XXXX" 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.phone ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.phone ? 'border-red-500' : 'border-slate-300'}`} 
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                   </div>
@@ -340,7 +353,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                         type="date" id="dateOfBirth" name="dateOfBirth" 
                         max={new Date().toISOString().split('T')[0]} 
                         value={formData.dateOfBirth} onChange={handleInputChange} 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.dateOfBirth ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.dateOfBirth ? 'border-red-500' : 'border-slate-300'}`} 
                     />
                     {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>}
                   </div>
@@ -349,7 +362,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                     <input 
                         type="text" id="occupation" name="occupation" 
                         value={formData.occupation} onChange={handleInputChange} 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.occupation ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.occupation ? 'border-red-500' : 'border-slate-300'}`} 
                     />
                     {errors.occupation && <p className="text-red-500 text-sm mt-1">{errors.occupation}</p>}
                   </div>
@@ -359,7 +372,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                     <input 
                         type="text" id="address" name="address" 
                         value={formData.address} onChange={handleInputChange} 
-                        className={`w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.address ? 'border-red-500' : 'border-slate-300'}`} 
+                        className={`w-full p-2.5 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all ${errors.address ? 'border-red-500' : 'border-slate-300'}`} 
                         placeholder="Rua, Número, Bairro, Cidade"
                     />
                     {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
@@ -374,7 +387,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                               <input 
                                   type="text" id="emergencyName" name="emergencyName" 
                                   value={formData.emergencyName} onChange={handleInputChange} 
-                                  className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" 
+                                  className="w-full p-2.5 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" 
                                   placeholder="Nome do familiar/amigo"
                               />
                           </div>
@@ -383,7 +396,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                               <input 
                                   type="tel" id="emergencyPhone" name="emergencyPhone" 
                                   value={formData.emergencyPhone} onChange={handleInputChange} 
-                                  className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" 
+                                  className="w-full p-2.5 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" 
                                   placeholder="(XX) 9XXXX-XXXX" 
                               />
                           </div>
@@ -397,17 +410,22 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                     <textarea 
                         id="internalNotes" name="internalNotes" 
                         value={formData.internalNotes} onChange={handleInputChange} 
-                        className="w-full p-3 border rounded-lg h-24 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                        className="w-full p-2.5 border rounded-md h-24 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
                     ></textarea>
                   </div>
                 </div>
-              </div>
+
+                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+                  <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Cancelar</button>
+                  <button onClick={handleProceedToConfirm} className="px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm">Revisar Dados</button>
+                </div>
+              </>
             )}
 
             {formStep === 'confirm' && (
-               <div className="space-y-4">
-                <h4 className="text-lg font-semibold text-slate-800 mb-2">Confirme as Informações</h4>
-                <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-3 text-sm">
+               <div>
+                <h4 className="text-lg font-semibold text-slate-800 mb-4">Confirme as Informações</h4>
+                <div className="bg-slate-50 p-5 rounded-md border border-slate-200 space-y-3 text-sm">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Nome</span>
@@ -451,69 +469,43 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ onNavigate, onVie
                         </div>
                     </div>
                 </div>
+
+                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+                  <button onClick={() => setFormStep('details')} className="px-4 py-2 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">Voltar e Editar</button>
+                  <button onClick={handleConfirmAndSave} className="px-6 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium shadow-sm">Confirmar e Salvar</button>
+                </div>
               </div>
             )}
-            </div>
-
-            {/* Standard Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-                {formStep === 'details' ? (
-                    <>
-                        <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">
-                            Cancelar
-                        </button>
-                        <button onClick={handleProceedToConfirm} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm">
-                            Revisar Dados
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <button onClick={() => setFormStep('details')} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium">
-                            Voltar e Editar
-                        </button>
-                        <button onClick={handleConfirmAndSave} className="px-6 py-2.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium shadow-sm">
-                            Confirmar e Salvar
-                        </button>
-                    </>
-                )}
             </div>
           </div>
         </div>
       )}
       
       {patientToToggleStatus && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60] animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-800">Confirmar Alteração</h3>
-            </div>
-            <div className="p-6">
-                <p className="text-slate-600">
-                Você tem certeza que deseja <span className="font-bold">{patientToToggleStatus.isActive ? 'INATIVAR' : 'REATIVAR'}</span> o paciente <span className="font-semibold">{patientToToggleStatus.name}</span>?
-                </p>
-            </div>
-            <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-              <button onClick={() => setPatientToToggleStatus(null)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium">Cancelar</button>
-              <button onClick={handleTogglePatientStatus} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 font-medium shadow-sm">Sim, confirmar</button>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[60] animate-fade-in">
+          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Confirmar Alteração</h3>
+            <p className="text-slate-600 mb-6">
+              Você tem certeza que deseja <span className="font-bold">{patientToToggleStatus.isActive ? 'INATIVAR' : 'REATIVAR'}</span> o paciente <span className="font-semibold">{patientToToggleStatus.name}</span>?
+            </p>
+            <div className="flex justify-end gap-3 mt-8">
+              <button onClick={() => setPatientToToggleStatus(null)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</button>
+              <button onClick={handleTogglePatientStatus} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700">Sim, confirmar</button>
             </div>
           </div>
         </div>
       )}
 
       {patientToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60] animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-800">Confirmar Exclusão</h3>
-            </div>
-            <div className="p-6">
-                <p className="text-slate-600">
-                    Você tem certeza que deseja excluir o paciente <span className="font-semibold">{patientToDelete.name}</span>? Esta ação não pode ser desfeita.
-                </p>
-            </div>
-            <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-                <button onClick={() => setPatientToDelete(null)} className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium">Cancelar</button>
-                <button onClick={handleDeletePatient} className="px-6 py-2.5 rounded-full bg-rose-600 text-white hover:bg-rose-700 font-medium shadow-sm">Excluir Paciente</button>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[60] animate-fade-in">
+          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Confirmar Exclusão</h3>
+            <p className="text-slate-600 mb-6">
+                Você tem certeza que deseja excluir o paciente <span className="font-semibold">{patientToDelete.name}</span>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3 mt-8">
+                <button onClick={() => setPatientToDelete(null)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</button>
+                <button onClick={handleDeletePatient} className="px-4 py-2 rounded-full bg-rose-600 text-white hover:bg-rose-700">Excluir Paciente</button>
             </div>
           </div>
         </div>

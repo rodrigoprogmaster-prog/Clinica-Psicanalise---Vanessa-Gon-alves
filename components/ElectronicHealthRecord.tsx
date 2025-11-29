@@ -35,6 +35,7 @@ interface ElectronicHealthRecordProps {
   onLogAction: (action: string, details: string) => void;
   onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
   signatureImage?: string | null;
+  onModalStateChange?: (isOpen: boolean) => void;
 }
 
 const initialAnamnesisForm: Anamnesis = {
@@ -70,7 +71,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   showStartButton = true,
   onLogAction,
   onShowToast,
-  signatureImage
+  signatureImage,
+  onModalStateChange
 }) => {
   const patient = useMemo(() => patients.find(p => p.id === patientId), [patientId, patients]);
   const patientNotes = useMemo(() => notes.filter(n => n.patientId === patientId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [notes, patientId]);
@@ -115,6 +117,17 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   const [receiptData, setReceiptData] = useState<{name: string, amount: number, method: string, date: string} | null>(null);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Modal State Notification for Sidebar
+  const hasOpenModal = isStartModalOpen || isEndConsultationModalOpen || isPaymentModalOpen || isReceiptModalOpen || isExportModalOpen || isEvaluationModalOpen || !!editingNote;
+  useEffect(() => {
+    if (onModalStateChange) {
+      onModalStateChange(hasOpenModal);
+    }
+    return () => {
+      if (onModalStateChange) onModalStateChange(false);
+    };
+  }, [hasOpenModal, onModalStateChange]);
 
   useEffect(() => {
     if (isConsultationMode) {
@@ -323,450 +336,473 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
     }
   };
 
-  const handleGenerateReceipt = () => {
+  const handleGenerateReceipt = async () => {
       if (!receiptData) return;
+
+      // Fix Fullscreen conflict
+      if (document.fullscreenElement) {
+        try {
+            await document.exitFullscreen();
+        } catch (e) {
+            console.error("Error exiting fullscreen", e);
+        }
+      }
 
       setIsReceiptModalOpen(false);
 
-      document.documentElement.requestFullscreen().catch(() => {});
+      setTimeout(() => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const todayString = new Date().toISOString().slice(0, 10);
+            printWindow.document.title = `Recibo - ${receiptData.name} - ${todayString}`;
+            
+            const signatureContent = signatureImage 
+              ? `<img src="${signatureImage}" class="sig-img" alt="Assinatura" />` 
+              : `<div class="line"></div>`;
 
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-          const todayString = new Date().toISOString().slice(0, 10);
-          printWindow.document.title = `Recibo - ${receiptData.name} - ${todayString}`;
-          
-          const signatureContent = signatureImage 
-            ? `<img src="${signatureImage}" class="sig-img" alt="Assinatura" />` 
-            : `<div class="line"></div>`;
-
-          const styles = `
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-            body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #444; min-height: 100vh; display: flex; justify-content: center; align-items: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .receipt-container { width: 80%; max-width: 700px; border: 2px solid #3730a3; padding: 40px; background-color: rgba(255, 255, 255, 0.95); }
-            .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 30px; }
-            .header h1 { color: #3730a3; margin: 0; font-size: 28px; letter-spacing: 2px; }
-            .content { font-size: 16px; line-height: 2; }
-            .signature { margin-top: 60px; text-align: center; }
-            .line { border-top: 1px solid #333; width: 60%; margin: 0 auto 10px auto; }
-            .sig-img { max-height: 80px; display: block; margin: 0 auto 5px auto; max-width: 200px; }
-          `;
-          const reportHTML = `
-            <html><head><title>Recibo</title><style>${styles}</style></head>
-                <body>
-                    <div class="receipt-container">
-                        <div class="header"><h1>RECIBO</h1></div>
-                        <div class="content">
-                            <p>Recebi de <strong>${receiptData.name}</strong></p>
-                            <p>A importância de <strong>${receiptData.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
-                            <p>Referente a <strong>Atendimento Psicológico / Psicanálise</strong>.</p>
-                            <p>Data do atendimento: ${new Date(receiptData.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
-                            <p>Forma de pagamento: ${receiptData.method}</p>
-                        </div>
-                        <div class="signature">${signatureContent}<p><strong>Vanessa Gonçalves</strong></p><p>Psicanalista Clínica</p></div>
-                    </div>
-                </body>
-            </html>
-          `;
-          printWindow.document.write(reportHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-      }
+            const styles = `
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+              body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #444; min-height: 100vh; display: flex; justify-content: center; align-items: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .receipt-container { width: 80%; max-width: 700px; border: 2px solid #3730a3; padding: 40px; background-color: rgba(255, 255, 255, 0.95); }
+              .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 30px; }
+              .header h1 { color: #3730a3; margin: 0; font-size: 28px; letter-spacing: 2px; }
+              .content { font-size: 16px; line-height: 2; }
+              .signature { margin-top: 60px; text-align: center; }
+              .line { border-top: 1px solid #333; width: 60%; margin: 0 auto 10px auto; }
+              .sig-img { max-height: 80px; display: block; margin: 0 auto 5px auto; max-width: 200px; }
+            `;
+            const reportHTML = `
+              <html><head><title>Recibo</title><style>${styles}</style></head>
+                  <body>
+                      <div class="receipt-container">
+                          <div class="header"><h1>RECIBO</h1></div>
+                          <div class="content">
+                              <p>Recebi de <strong>${receiptData.name}</strong></p>
+                              <p>A importância de <strong>${receiptData.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
+                              <p>Referente a <strong>Atendimento Psicológico / Psicanálise</strong>.</p>
+                              <p>Data do atendimento: ${new Date(receiptData.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                              <p>Forma de pagamento: ${receiptData.method}</p>
+                          </div>
+                          <div class="signature">${signatureContent}<p><strong>Vanessa Gonçalves</strong></p><p>Psicanalista Clínica</p></div>
+                      </div>
+                  </body>
+              </html>
+            `;
+            printWindow.document.write(reportHTML);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        }
+      }, 100);
   };
 
-  const handleExportPDF = (type: 'full' | 'blank') => {
+  const handleExportPDF = async (type: 'full' | 'blank') => {
     if (!patient) return;
+    
+    // Fix Fullscreen conflict
+    if (document.fullscreenElement) {
+        try {
+            await document.exitFullscreen();
+        } catch (e) {
+            console.error("Error exiting fullscreen", e);
+        }
+    }
+
     setIsExportModalOpen(false);
     onLogAction('Exportação de Prontuário', `Tipo: ${type === 'full' ? 'Completo' : 'Em Branco'}. Paciente: ${patient.name}`);
     onShowToast('Gerando documento...', 'info');
 
-    document.documentElement.requestFullscreen().catch(() => {});
+    setTimeout(() => {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+          const todayString = new Date().toISOString().slice(0, 10);
+          
+          const docTitle = type === 'full' ? "Ficha clínica, Anamnese" : `Ficha Clínica em Branco`;
+          printWindow.document.title = `${docTitle} - ${patient.name} - ${todayString}`;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        const todayString = new Date().toISOString().slice(0, 10);
-        
-        const docTitle = type === 'full' ? "Ficha clínica, Anamnese" : `Ficha Clínica em Branco`;
-        printWindow.document.title = `${docTitle} - ${patient.name} - ${todayString}`;
+          const styles = `
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+              @media print {
+                  @page { size: A4; margin: 20mm; }
+                  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  .no-print { display: none; }
+              }
+              body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #111827; font-size: 10pt; line-height: 1.4; background: #fff; }
+              .page-container { width: 100%; max-width: 210mm; margin: 0 auto; }
+              
+              .header { text-align: center; margin-bottom: 2rem; border-bottom: 2px solid #3730a3; padding-bottom: 1rem; }
+              h1.doc-title { font-size: 16pt; margin: 0; color: #3730a3; text-transform: uppercase; letter-spacing: 1px; }
+              .doc-subtitle { font-size: 10pt; color: #6b7280; margin-top: 5px; }
+              
+              .section { margin-bottom: 1.5rem; break-inside: avoid; }
+              .section-title { 
+                  font-size: 11pt; 
+                  font-weight: 700; 
+                  color: #1e1b4b; 
+                  background-color: #e0e7ff; 
+                  padding: 6px 10px; 
+                  margin-bottom: 10px; 
+                  border-left: 4px solid #3730a3; 
+                  text-transform: uppercase;
+              }
+              
+              .row { display: flex; flex-wrap: wrap; margin-bottom: 6px; }
+              .col { flex: 1; min-width: 150px; margin-right: 15px; margin-bottom: 4px; }
+              .col.full { width: 100%; flex: 100%; }
+              
+              .label { font-weight: 700; color: #4b5563; font-size: 9pt; margin-right: 4px; }
+              .value { color: #000; font-weight: 400; }
+              
+              .list-value { display: inline-block; background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 9pt; margin-right: 4px; border: 1px solid #e5e7eb; }
+              
+              .blank-line { border-bottom: 1px solid #d1d5db; height: 24px; margin-bottom: 8px; }
+              
+              .session-note { border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; margin-bottom: 10px; }
+              .session-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 9pt; color: #3730a3; margin-bottom: 4px; }
+              .session-content { font-size: 10pt; text-align: justify; white-space: pre-wrap; }
+              
+              .evaluation-tag { font-size: 8pt; font-weight: bold; padding: 1px 5px; border-radius: 3px; color: white; text-transform: capitalize; }
+              .eval-pessimo { background-color: #e11d48; }
+              .eval-ruim { background-color: #f59e0b; }
+              .eval-bom { background-color: #10b981; }
+              .eval-otima { background-color: #3b82f6; }
+              
+              .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; color: #9ca3af; padding-top: 10px; background: white; border-top: 1px solid #eee; }
 
-        const styles = `
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-            @page { size: A4; margin: 20mm; }
-            body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #111827; font-size: 10pt; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .page-container { width: 100%; max-width: 210mm; margin: 0 auto; }
-            
-            .header { text-align: center; margin-bottom: 2rem; border-bottom: 2px solid #3730a3; padding-bottom: 1rem; }
-            h1.doc-title { font-size: 16pt; margin: 0; color: #3730a3; text-transform: uppercase; letter-spacing: 1px; }
-            .doc-subtitle { font-size: 10pt; color: #6b7280; margin-top: 5px; }
-            
-            .section { margin-bottom: 1.5rem; break-inside: avoid; }
-            .section-title { 
-                font-size: 11pt; 
-                font-weight: 700; 
-                color: #1e1b4b; 
-                background-color: #e0e7ff; 
-                padding: 6px 10px; 
-                margin-bottom: 10px; 
-                border-left: 4px solid #3730a3; 
-                text-transform: uppercase;
-            }
-            
-            .row { display: flex; flex-wrap: wrap; margin-bottom: 6px; }
-            .col { flex: 1; min-width: 150px; margin-right: 15px; margin-bottom: 4px; }
-            .col.full { width: 100%; flex: 100%; }
-            
-            .label { font-weight: 700; color: #4b5563; font-size: 9pt; margin-right: 4px; }
-            .value { color: #000; font-weight: 400; }
-            
-            .list-value { display: inline-block; background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 9pt; margin-right: 4px; border: 1px solid #e5e7eb; }
-            
-            .blank-line { border-bottom: 1px solid #d1d5db; height: 24px; margin-bottom: 8px; }
-            
-            .session-note { border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; margin-bottom: 10px; }
-            .session-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 9pt; color: #3730a3; margin-bottom: 4px; }
-            .session-content { font-size: 10pt; text-align: justify; white-space: pre-wrap; }
-            
-            .evaluation-tag { font-size: 8pt; font-weight: bold; padding: 1px 5px; border-radius: 3px; color: white; text-transform: capitalize; }
-            .eval-pessimo { background-color: #e11d48; }
-            .eval-ruim { background-color: #f59e0b; }
-            .eval-bom { background-color: #10b981; }
-            .eval-otima { background-color: #3b82f6; }
-            
-            .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; color: #9ca3af; padding-top: 10px; background: white; }
+              /* CSS for Blank Form */
+              .line-fill { border-bottom: 1px solid #999; display: inline-block; flex-grow: 1; margin-left: 5px; min-width: 50px; }
+              .check-opt { margin-right: 10px; font-size: 9pt; }
+              .check-opt::before { content: "( ) "; font-family: monospace; }
+              .big-space { height: 80px; border-bottom: 1px solid #ddd; margin-bottom: 10px; }
+          `;
 
-            /* CSS for Blank Form */
-            .line-fill { border-bottom: 1px solid #999; display: inline-block; flex-grow: 1; margin-left: 5px; min-width: 50px; }
-            .check-opt { margin-right: 10px; font-size: 9pt; }
-            .check-opt::before { content: "( ) "; font-family: monospace; }
-            .big-space { height: 80px; border-bottom: 1px solid #ddd; margin-bottom: 10px; }
-        `;
+          let bodyContent = `
+              <div class="page-container">
+                  <div class="header">
+                      <h1 class="doc-title">${docTitle}</h1>
+                      <p class="doc-subtitle">Clínica Vanessa Gonçalves • Paciente: ${patient.name}</p>
+                  </div>
+          `;
 
-        let bodyContent = `
-            <div class="page-container">
-                <div class="header">
-                    <h1 class="doc-title">${docTitle}</h1>
-                    <p class="doc-subtitle">Clínica Vanessa Gonçalves • Paciente: ${patient.name}</p>
-                </div>
-        `;
+          // Helper to format text
+          const fmt = (val: string | number | undefined | null) => {
+              if (val === undefined || val === null || val === '') return '-';
+              return String(val).charAt(0).toUpperCase() + String(val).slice(1);
+          };
 
-        // Helper to format text
-        const fmt = (val: string | number | undefined | null) => {
-            if (val === undefined || val === null || val === '') return '-';
-            return String(val).charAt(0).toUpperCase() + String(val).slice(1);
-        };
+          // Helper to format lists (symptoms/substances)
+          const fmtList = (items: string[]) => {
+              if (items.length === 0) return '-';
+              return items.map(i => `<span class="list-value">${i}</span>`).join('');
+          };
 
-        // Helper to format lists (symptoms/substances)
-        const fmtList = (items: string[]) => {
-            if (items.length === 0) return '-';
-            return items.map(i => `<span class="list-value">${i}</span>`).join('');
-        };
+          if (type === 'blank') {
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">1. Dados Pessoais</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Nome:</span> ${patient.name}</div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Estado Civil:</span> 
+                              <span class="check-opt">Solteiro(a)</span> 
+                              <span class="check-opt">Casado(a)</span> 
+                              <span class="check-opt">Divorciado(a)</span> 
+                              <span class="check-opt">Viúvo(a)</span>
+                          </div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Possui Filhos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Quantos? ______</div>
+                          <div class="col"><span class="label">Aborto?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full" style="display:flex;"><span class="label">Profissão:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Escolaridade:</span> 
+                              <span class="check-opt">Fundamental</span> 
+                              <span class="check-opt">Médio</span> 
+                              <span class="check-opt">Graduação</span> 
+                              <span class="check-opt">Pós-Grad.</span>
+                          </div>
+                      </div>
+                  </div>
 
-        if (type === 'blank') {
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">1. Dados Pessoais</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Nome:</span> ${patient.name}</div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Estado Civil:</span> 
-                            <span class="check-opt">Solteiro(a)</span> 
-                            <span class="check-opt">Casado(a)</span> 
-                            <span class="check-opt">Divorciado(a)</span> 
-                            <span class="check-opt">Viúvo(a)</span>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Possui Filhos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Quantos? ______</div>
-                        <div class="col"><span class="label">Aborto?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full" style="display:flex;"><span class="label">Profissão:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Escolaridade:</span> 
-                            <span class="check-opt">Fundamental</span> 
-                            <span class="check-opt">Médio</span> 
-                            <span class="check-opt">Graduação</span> 
-                            <span class="check-opt">Pós-Grad.</span>
-                        </div>
-                    </div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">2. Histórico Familiar</div>
+                      <div class="row">
+                          <div class="col full" style="display:flex;"><span class="label">Mãe:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Relação com Mãe:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full" style="display:flex;"><span class="label">Pai:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Relação com Pai:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Irmãos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Quantos? ______</div>
+                          <div class="col"><span class="label">Relação:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Infância:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
+                      </div>
+                  </div>
 
-                <div class="section">
-                    <div class="section-title">2. Histórico Familiar</div>
-                    <div class="row">
-                        <div class="col full" style="display:flex;"><span class="label">Mãe:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Relação com Mãe:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full" style="display:flex;"><span class="label">Pai:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Relação com Pai:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Irmãos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Quantos? ______</div>
-                        <div class="col"><span class="label">Relação:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Infância:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
-                    </div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">3. Saúde Geral</div>
+                      <div class="row">
+                          <div class="col full" style="display:flex;"><span class="label">Medicação Contínua:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full" style="display:flex;"><span class="label">Diagnóstico Relevante:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Uso de Substâncias:</span> 
+                              <span class="check-opt">Maconha</span> 
+                              <span class="check-opt">Cocaína</span>
+                              <span class="check-opt">Álcool</span>
+                              <span class="check-opt">Cigarro</span>
+                              <span class="check-opt">Nenhuma</span>
+                          </div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Qualidade do Sono:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
+                      </div>
+                  </div>
 
-                <div class="section">
-                    <div class="section-title">3. Saúde Geral</div>
-                    <div class="row">
-                        <div class="col full" style="display:flex;"><span class="label">Medicação Contínua:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full" style="display:flex;"><span class="label">Diagnóstico Relevante:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Uso de Substâncias:</span> 
-                            <span class="check-opt">Maconha</span> 
-                            <span class="check-opt">Cocaína</span>
-                            <span class="check-opt">Álcool</span>
-                            <span class="check-opt">Cigarro</span>
-                            <span class="check-opt">Nenhuma</span>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Qualidade do Sono:</span> <span class="check-opt">Péssima</span> <span class="check-opt">Ruim</span> <span class="check-opt">Boa</span> <span class="check-opt">Ótima</span></div>
-                    </div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">4. Aspectos Psicológicos</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Sintomas:</span> 
+                              <span class="check-opt">Tristeza</span> <span class="check-opt">Depressão</span> <span class="check-opt">Ansiedade</span> <span class="check-opt">Nervosismo</span>
+                          </div>
+                          <div class="col full"><span class="label">Fobias/Medos:</span> <div class="line-fill"></div></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Ansiedade:</span> ( )Baixo ( )Normal ( )Alto</div>
+                          <div class="col"><span class="label">Irritabilidade:</span> ( )Baixo ( )Normal ( )Alto</div>
+                          <div class="col"><span class="label">Tristeza:</span> ( )Baixo ( )Normal ( )Alto</div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Culpa?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
+                          <div class="col"><span class="label">Injustiça?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Ideias Suicidas?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Comentário: _______________________________</div>
+                      </div>
+                  </div>
 
-                <div class="section">
-                    <div class="section-title">4. Aspectos Psicológicos</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Sintomas:</span> 
-                            <span class="check-opt">Tristeza</span> <span class="check-opt">Depressão</span> <span class="check-opt">Ansiedade</span> <span class="check-opt">Nervosismo</span>
-                        </div>
-                        <div class="col full"><span class="label">Fobias/Medos:</span> <div class="line-fill"></div></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Ansiedade:</span> ( )Baixo ( )Normal ( )Alto</div>
-                        <div class="col"><span class="label">Irritabilidade:</span> ( )Baixo ( )Normal ( )Alto</div>
-                        <div class="col"><span class="label">Tristeza:</span> ( )Baixo ( )Normal ( )Alto</div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Culpa?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
-                        <div class="col"><span class="label">Injustiça?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Ideias Suicidas?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Comentário: _______________________________</div>
-                    </div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">5. Vida Social e Rotina</div>
+                      <div class="row">
+                          <div class="col"><span class="label">Amigos Próximos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
+                          <div class="col"><span class="label">Socialmente:</span> <span class="check-opt">Expansivo</span> <span class="check-opt">Reservado</span></div>
+                          <div class="col"><span class="label">Ativ. Física?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Financeiro:</span> <span class="check-opt">Ruim</span> <span class="check-opt">Estável</span> <span class="check-opt">Bom</span> <span class="check-opt">Ótimo</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Rotina Diária:</span></div>
+                          <div class="blank-line"></div><div class="blank-line"></div>
+                      </div>
+                  </div>
 
-                <div class="section">
-                    <div class="section-title">5. Vida Social e Rotina</div>
-                    <div class="row">
-                        <div class="col"><span class="label">Amigos Próximos?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
-                        <div class="col"><span class="label">Socialmente:</span> <span class="check-opt">Expansivo</span> <span class="check-opt">Reservado</span></div>
-                        <div class="col"><span class="label">Ativ. Física?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Financeiro:</span> <span class="check-opt">Ruim</span> <span class="check-opt">Estável</span> <span class="check-opt">Bom</span> <span class="check-opt">Ótimo</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Rotina Diária:</span></div>
-                        <div class="blank-line"></div><div class="blank-line"></div>
-                    </div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">6. Buscando Ajuda</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Como chegou?</span> <span class="check-opt">Indicação</span> <span class="check-opt">Internet</span> Outro: _________________</div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Terapia Anterior?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Tempo: _______________</div>
+                      </div>
+                      <div class="row"><div class="col full"><span class="label">Motivo Principal:</span></div><div class="blank-line"></div><div class="blank-line"></div></div>
+                      <div class="row"><div class="col full" style="display:flex;"><span class="label">Início:</span> <div class="line-fill"></div></div></div>
+                      <div class="row"><div class="col full"><span class="label">Evento Desencadeador:</span></div><div class="blank-line"></div></div>
+                      <div class="row"><div class="col full"><span class="label">Expectativas:</span></div><div class="blank-line"></div></div>
+                  </div>
 
-                <div class="section">
-                    <div class="section-title">6. Buscando Ajuda</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Como chegou?</span> <span class="check-opt">Indicação</span> <span class="check-opt">Internet</span> Outro: _________________</div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Terapia Anterior?</span> <span class="check-opt">Sim</span> <span class="check-opt">Não</span> Tempo: _______________</div>
-                    </div>
-                    <div class="row"><div class="col full"><span class="label">Motivo Principal:</span></div><div class="blank-line"></div><div class="blank-line"></div></div>
-                    <div class="row"><div class="col full" style="display:flex;"><span class="label">Início:</span> <div class="line-fill"></div></div></div>
-                    <div class="row"><div class="col full"><span class="label">Evento Desencadeador:</span></div><div class="blank-line"></div></div>
-                    <div class="row"><div class="col full"><span class="label">Expectativas:</span></div><div class="blank-line"></div></div>
-                </div>
+                  <div class="section">
+                      <div class="section-title">7. Observações Gerais</div>
+                      <div class="blank-line"></div><div class="blank-line"></div><div class="blank-line"></div>
+                  </div>
+              `;
+          } else if (patient.anamnesis) {
+              const a = patient.anamnesis;
+              
+              // 1. Dados Pessoais
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">1. Dados Pessoais</div>
+                      <div class="row">
+                          <div class="col"><span class="label">Nome:</span> <span class="value">${patient.name}</span></div>
+                          <div class="col"><span class="label">Nascimento:</span> <span class="value">${new Date(patient.dateOfBirth).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Estado Civil:</span> <span class="value">${fmt(a.civilStatus).replace('(a)', '')}</span></div>
+                          <div class="col"><span class="label">Filhos:</span> <span class="value">${fmt(a.hasChildren)} ${a.hasChildren === 'sim' ? `(${a.numberOfChildren})` : ''}</span></div>
+                          <div class="col"><span class="label">Aborto:</span> <span class="value">${fmt(a.hadAbortion)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Profissão:</span> <span class="value">${fmt(a.occupation)}</span></div>
+                          <div class="col"><span class="label">Escolaridade:</span> <span class="value">${fmt(a.educationLevel).replace('_', ' ')}</span></div>
+                      </div>
+                  </div>
+              `;
 
-                <div class="section">
-                    <div class="section-title">7. Observações Gerais</div>
-                    <div class="blank-line"></div><div class="blank-line"></div><div class="blank-line"></div>
-                </div>
-             `;
-        } else if (patient.anamnesis) {
-             const a = patient.anamnesis;
-             
-             // 1. Dados Pessoais
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">1. Dados Pessoais</div>
-                    <div class="row">
-                        <div class="col"><span class="label">Nome:</span> <span class="value">${patient.name}</span></div>
-                        <div class="col"><span class="label">Nascimento:</span> <span class="value">${new Date(patient.dateOfBirth).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Estado Civil:</span> <span class="value">${fmt(a.civilStatus).replace('(a)', '')}</span></div>
-                        <div class="col"><span class="label">Filhos:</span> <span class="value">${fmt(a.hasChildren)} ${a.hasChildren === 'sim' ? `(${a.numberOfChildren})` : ''}</span></div>
-                        <div class="col"><span class="label">Aborto:</span> <span class="value">${fmt(a.hadAbortion)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Profissão:</span> <span class="value">${fmt(a.occupation)}</span></div>
-                        <div class="col"><span class="label">Escolaridade:</span> <span class="value">${fmt(a.educationLevel).replace('_', ' ')}</span></div>
-                    </div>
-                </div>
-             `;
+              // 2. Histórico Familiar
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">2. Histórico Familiar</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Mãe:</span> <span class="value">${a.mothersName || '-'} (Relação: ${fmt(a.mothersRelationship)})</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Pai:</span> <span class="value">${a.fathersName || '-'} (Relação: ${fmt(a.fathersRelationship)})</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Irmãos:</span> <span class="value">${fmt(a.hasSiblings)} ${a.hasSiblings === 'sim' ? `(${a.numberOfSiblings}) - Relação: ${fmt(a.siblingsRelationship)}` : ''}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Infância:</span> <span class="value">${fmt(a.childhoodDescription)}</span></div>
+                      </div>
+                  </div>
+              `;
 
-             // 2. Histórico Familiar
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">2. Histórico Familiar</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Mãe:</span> <span class="value">${a.mothersName || '-'} (Relação: ${fmt(a.mothersRelationship)})</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Pai:</span> <span class="value">${a.fathersName || '-'} (Relação: ${fmt(a.fathersRelationship)})</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Irmãos:</span> <span class="value">${fmt(a.hasSiblings)} ${a.hasSiblings === 'sim' ? `(${a.numberOfSiblings}) - Relação: ${fmt(a.siblingsRelationship)}` : ''}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Infância:</span> <span class="value">${fmt(a.childhoodDescription)}</span></div>
-                    </div>
-                </div>
-             `;
+              // 3. Saúde Geral
+              const substances = [
+                  a.substanceUse_marijuana && 'Maconha', a.substanceUse_cocaine && 'Cocaína',
+                  a.substanceUse_alcohol && 'Álcool', a.substanceUse_cigarette && 'Cigarro',
+                  a.substanceUse_none && 'Nenhuma'
+              ].filter(Boolean) as string[];
 
-             // 3. Saúde Geral
-             const substances = [
-                 a.substanceUse_marijuana && 'Maconha', a.substanceUse_cocaine && 'Cocaína',
-                 a.substanceUse_alcohol && 'Álcool', a.substanceUse_cigarette && 'Cigarro',
-                 a.substanceUse_none && 'Nenhuma'
-             ].filter(Boolean) as string[];
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">3. Saúde Geral</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Medicação Contínua:</span> <span class="value">${fmt(a.continuousMedication)} ${a.continuousMedication === 'sim' ? `(${a.medicationsDetails})` : ''}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Diagnóstico Médico:</span> <span class="value">${fmt(a.relevantMedicalDiagnosis)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Uso de Substâncias:</span> <span class="value">${fmtList(substances)}</span></div>
+                          <div class="col"><span class="label">Qualidade do Sono:</span> <span class="value">${fmt(a.sleepQuality)}</span></div>
+                      </div>
+                  </div>
+              `;
 
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">3. Saúde Geral</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Medicação Contínua:</span> <span class="value">${fmt(a.continuousMedication)} ${a.continuousMedication === 'sim' ? `(${a.medicationsDetails})` : ''}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Diagnóstico Médico:</span> <span class="value">${fmt(a.relevantMedicalDiagnosis)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Uso de Substâncias:</span> <span class="value">${fmtList(substances)}</span></div>
-                        <div class="col"><span class="label">Qualidade do Sono:</span> <span class="value">${fmt(a.sleepQuality)}</span></div>
-                    </div>
-                </div>
-             `;
+              // 4. Aspectos Psicológicos
+              const symptoms = [
+                  a.mainSymptoms_sadness && 'Tristeza', a.mainSymptoms_depression && 'Depressão',
+                  a.mainSymptoms_anxiety && 'Ansiedade', a.mainSymptoms_nervousness && 'Nervosismo',
+                  a.mainSymptoms_phobias && 'Fobias'
+              ].filter(Boolean) as string[];
+              if(a.mainSymptoms_otherFear) symptoms.push(`Outro: ${a.mainSymptoms_otherFear}`);
 
-             // 4. Aspectos Psicológicos
-             const symptoms = [
-                 a.mainSymptoms_sadness && 'Tristeza', a.mainSymptoms_depression && 'Depressão',
-                 a.mainSymptoms_anxiety && 'Ansiedade', a.mainSymptoms_nervousness && 'Nervosismo',
-                 a.mainSymptoms_phobias && 'Fobias'
-             ].filter(Boolean) as string[];
-             if(a.mainSymptoms_otherFear) symptoms.push(`Outro: ${a.mainSymptoms_otherFear}`);
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">4. Aspectos Psicológicos e Emocionais</div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Principais Sintomas:</span> <span class="value">${fmtList(symptoms)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Nível Ansiedade:</span> <span class="value">${fmt(a.anxietyLevel)}</span></div>
+                          <div class="col"><span class="label">Nível Irritabilidade:</span> <span class="value">${fmt(a.irritabilityLevel)}</span></div>
+                          <div class="col"><span class="label">Nível Tristeza:</span> <span class="value">${fmt(a.sadnessLevel)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Culpa:</span> <span class="value">${fmt(a.carriesGuilt)}</span></div>
+                          <div class="col"><span class="label">Injustiça:</span> <span class="value">${fmt(a.carriesInjustice)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Pensamentos Suicidas:</span> <span class="value">${fmt(a.suicidalThoughts)} ${a.suicidalThoughts === 'sim' ? `(${a.suicidalThoughtsComment})` : ''}</span></div>
+                      </div>
+                  </div>
+              `;
 
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">4. Aspectos Psicológicos e Emocionais</div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Principais Sintomas:</span> <span class="value">${fmtList(symptoms)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Nível Ansiedade:</span> <span class="value">${fmt(a.anxietyLevel)}</span></div>
-                        <div class="col"><span class="label">Nível Irritabilidade:</span> <span class="value">${fmt(a.irritabilityLevel)}</span></div>
-                        <div class="col"><span class="label">Nível Tristeza:</span> <span class="value">${fmt(a.sadnessLevel)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Culpa:</span> <span class="value">${fmt(a.carriesGuilt)}</span></div>
-                        <div class="col"><span class="label">Injustiça:</span> <span class="value">${fmt(a.carriesInjustice)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Pensamentos Suicidas:</span> <span class="value">${fmt(a.suicidalThoughts)} ${a.suicidalThoughts === 'sim' ? `(${a.suicidalThoughtsComment})` : ''}</span></div>
-                    </div>
-                </div>
-             `;
+              // 5. Vida Social
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">5. Vida Social e Rotina</div>
+                      <div class="row">
+                          <div class="col"><span class="label">Amigos Próximos:</span> <span class="value">${fmt(a.hasCloseFriends)}</span></div>
+                          <div class="col"><span class="label">Socialmente:</span> <span class="value">${fmt(a.socialConsideration)}</span></div>
+                          <div class="col"><span class="label">Atividade Física:</span> <span class="value">${fmt(a.physicalActivity)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col"><span class="label">Financeiro:</span> <span class="value">${fmt(a.financialStatus)}</span></div>
+                      </div>
+                      <div class="row">
+                          <div class="col full"><span class="label">Rotina Diária:</span> <span class="value">${fmt(a.dailyRoutine)}</span></div>
+                      </div>
+                  </div>
+              `;
 
-             // 5. Vida Social
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">5. Vida Social e Rotina</div>
-                    <div class="row">
-                        <div class="col"><span class="label">Amigos Próximos:</span> <span class="value">${fmt(a.hasCloseFriends)}</span></div>
-                        <div class="col"><span class="label">Socialmente:</span> <span class="value">${fmt(a.socialConsideration)}</span></div>
-                        <div class="col"><span class="label">Atividade Física:</span> <span class="value">${fmt(a.physicalActivity)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col"><span class="label">Financeiro:</span> <span class="value">${fmt(a.financialStatus)}</span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col full"><span class="label">Rotina Diária:</span> <span class="value">${fmt(a.dailyRoutine)}</span></div>
-                    </div>
-                </div>
-             `;
+              // 6. Buscando Ajuda
+              bodyContent += `
+                  <div class="section">
+                      <div class="section-title">6. Buscando Ajuda</div>
+                      <div class="row">
+                          <div class="col"><span class="label">Origem:</span> <span class="value">${fmt(a.howFoundAnalysis)} ${a.howFoundAnalysis === 'outro' ? `(${a.howFoundAnalysisOther})` : ''}</span></div>
+                          <div class="col"><span class="label">Terapia Anterior:</span> <span class="value">${fmt(a.previousTherapy)} ${a.previousTherapy === 'sim' ? `(${a.previousTherapyDuration})` : ''}</span></div>
+                      </div>
+                      <div class="row"><div class="col full"><span class="label">Motivo Principal:</span> <span class="value">${fmt(a.mainReason)}</span></div></div>
+                      <div class="row"><div class="col full"><span class="label">Início:</span> <span class="value">${fmt(a.situationStart)}</span></div></div>
+                      <div class="row"><div class="col full"><span class="label">Evento Desencadeador:</span> <span class="value">${fmt(a.triggeringEvent)}</span></div></div>
+                      <div class="row"><div class="col full"><span class="label">Expectativas:</span> <span class="value">${fmt(a.expectationsAnalysis)}</span></div></div>
+                  </div>
+              `;
 
-             // 6. Buscando Ajuda
-             bodyContent += `
-                <div class="section">
-                    <div class="section-title">6. Buscando Ajuda</div>
-                    <div class="row">
-                        <div class="col"><span class="label">Origem:</span> <span class="value">${fmt(a.howFoundAnalysis)} ${a.howFoundAnalysis === 'outro' ? `(${a.howFoundAnalysisOther})` : ''}</span></div>
-                        <div class="col"><span class="label">Terapia Anterior:</span> <span class="value">${fmt(a.previousTherapy)} ${a.previousTherapy === 'sim' ? `(${a.previousTherapyDuration})` : ''}</span></div>
-                    </div>
-                    <div class="row"><div class="col full"><span class="label">Motivo Principal:</span> <span class="value">${fmt(a.mainReason)}</span></div></div>
-                    <div class="row"><div class="col full"><span class="label">Início:</span> <span class="value">${fmt(a.situationStart)}</span></div></div>
-                    <div class="row"><div class="col full"><span class="label">Evento Desencadeador:</span> <span class="value">${fmt(a.triggeringEvent)}</span></div></div>
-                    <div class="row"><div class="col full"><span class="label">Expectativas:</span> <span class="value">${fmt(a.expectationsAnalysis)}</span></div></div>
-                </div>
-             `;
+              // 7. Observações
+              if(a.generalObservations) {
+                  bodyContent += `
+                      <div class="section">
+                          <div class="section-title">7. Observações Gerais</div>
+                          <p class="value">${a.generalObservations}</p>
+                      </div>
+                  `;
+              }
 
-             // 7. Observações
-             if(a.generalObservations) {
-                 bodyContent += `
-                    <div class="section">
-                        <div class="section-title">7. Observações Gerais</div>
-                        <p class="value">${a.generalObservations}</p>
-                    </div>
-                 `;
-             }
+              // Prontuário / Sessões
+              if (patientNotes.length > 0) {
+                  bodyContent += `<div class="section"><div class="section-title">Histórico de Sessões</div>`;
+                  patientNotes.forEach(n => {
+                      let evalTag = '';
+                      if(n.evaluation) {
+                          const evalColor = n.evaluation === 'pessimo' ? 'eval-pessimo' : n.evaluation === 'ruim' ? 'eval-ruim' : n.evaluation === 'bom' ? 'eval-bom' : 'eval-otima';
+                          const evalLabel = n.evaluation.charAt(0).toUpperCase() + n.evaluation.slice(1);
+                          evalTag = `<span class="evaluation-tag ${evalColor}">${evalLabel}</span>`;
+                      }
+                      bodyContent += `
+                          <div class="session-note">
+                              <div class="session-header">
+                                  <span>Data: ${new Date(n.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
+                                  ${evalTag}
+                              </div>
+                              <div class="session-content">${n.content}</div>
+                          </div>
+                      `;
+                  })
+                  bodyContent += `</div>`;
+              }
+          }
+          
+          bodyContent += `
+              <div class="footer">
+                  Documento gerado em ${new Date().toLocaleString('pt-BR')} • Documento Confidencial
+              </div>
+          </div>`;
 
-             // Prontuário / Sessões
-             if (patientNotes.length > 0) {
-                 bodyContent += `<div class="section"><div class="section-title">Histórico de Sessões</div>`;
-                 patientNotes.forEach(n => {
-                     let evalTag = '';
-                     if(n.evaluation) {
-                        const evalColor = n.evaluation === 'pessimo' ? 'eval-pessimo' : n.evaluation === 'ruim' ? 'eval-ruim' : n.evaluation === 'bom' ? 'eval-bom' : 'eval-otima';
-                        const evalLabel = n.evaluation.charAt(0).toUpperCase() + n.evaluation.slice(1);
-                        evalTag = `<span class="evaluation-tag ${evalColor}">${evalLabel}</span>`;
-                     }
-                     bodyContent += `
-                        <div class="session-note">
-                            <div class="session-header">
-                                <span>Data: ${new Date(n.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
-                                ${evalTag}
-                            </div>
-                            <div class="session-content">${n.content}</div>
-                        </div>
-                     `;
-                 })
-                 bodyContent += `</div>`;
-             }
-        }
-        
-        bodyContent += `
-            <div class="footer">
-                Documento gerado em ${new Date().toLocaleString('pt-BR')} • Documento Confidencial
-            </div>
-        </div>`;
-
-        printWindow.document.write(`<html><head><title>${docTitle}</title><style>${styles}</style></head><body>${bodyContent}</body></html>`);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-    }
+          printWindow.document.write(`<html><head><title>${docTitle}</title><style>${styles}</style></head><body>${bodyContent}</body></html>`);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+      }
+    }, 100);
   };
 
   const getEvaluationLabel = (evaluation: string) => {
@@ -837,6 +873,12 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
     </div>
   );
 
+  // Helper to safely format text for display
+  const displayFmt = (val: string | number | undefined | null) => {
+      if (val === undefined || val === null || val === '') return '-';
+      return String(val).charAt(0).toUpperCase() + String(val).slice(1);
+  };
+
   if (!patient) {
     return (
       <ModuleContainer title="Prontuário Eletrônico" onBack={() => onNavigate('patients')}>
@@ -853,8 +895,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
   return (
     <ModuleContainer title={`PEP de ${patient.name}`} onBack={() => onNavigate('patients')} actions={moduleActions}>
       {isStartModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[90] animate-fade-in">
-            <div className="bg-white rounded-xl shadow-xl p-8 text-center animate-slide-up transform max-w-sm mx-4 w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[90] animate-fade-in">
+            <div className="bg-white p-8 rounded-lg shadow-xl text-center animate-slide-up transform max-w-sm mx-4">
                 <div className="mb-4 flex justify-center text-emerald-500">
                      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -868,59 +910,55 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isEvaluationModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 text-center animate-slide-up overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-100">
-                    <h3 className="text-xl font-bold text-slate-800">Avaliação da Sessão</h3>
-                </div>
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 text-center animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Avaliação da Sessão</h3>
+                <p className="text-slate-600 mb-6">Como você avalia a evolução do paciente nesta sessão?</p>
                 
-                <div className="p-6">
-                    <p className="text-slate-600 mb-6">Como você avalia a evolução do paciente nesta sessão?</p>
-                    <div className="grid grid-cols-2 gap-3 mb-2">
-                        <button 
-                            onClick={() => setSelectedEvaluation('pessimo')}
-                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'pessimo' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-rose-300 hover:bg-rose-50/50'}`}
-                        >
-                            <span className="text-2xl">😞</span>
-                            <span className="font-semibold text-sm text-slate-700">Péssimo</span>
-                        </button>
-                        <button 
-                            onClick={() => setSelectedEvaluation('ruim')}
-                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'ruim' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'}`}
-                        >
-                            <span className="text-2xl">😐</span>
-                            <span className="font-semibold text-sm text-slate-700">Ruim</span>
-                        </button>
-                        <button 
-                            onClick={() => setSelectedEvaluation('bom')}
-                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'bom' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'}`}
-                        >
-                            <span className="text-2xl">🙂</span>
-                            <span className="font-semibold text-sm text-slate-700">Bom</span>
-                        </button>
-                        <button 
-                            onClick={() => setSelectedEvaluation('otimo')}
-                            className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'otimo' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'}`}
-                        >
-                            <span className="text-2xl">😄</span>
-                            <span className="font-semibold text-sm text-slate-700">Ótimo</span>
-                        </button>
-                    </div>
+                <div className="grid grid-cols-2 gap-3 mb-8">
+                    <button 
+                        onClick={() => setSelectedEvaluation('pessimo')}
+                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'pessimo' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-rose-300 hover:bg-rose-50/50'}`}
+                    >
+                        <span className="text-2xl">😞</span>
+                        <span className="font-semibold text-sm text-slate-700">Péssimo</span>
+                    </button>
+                    <button 
+                        onClick={() => setSelectedEvaluation('ruim')}
+                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'ruim' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'}`}
+                    >
+                        <span className="text-2xl">😐</span>
+                        <span className="font-semibold text-sm text-slate-700">Ruim</span>
+                    </button>
+                    <button 
+                        onClick={() => setSelectedEvaluation('bom')}
+                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'bom' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'}`}
+                    >
+                        <span className="text-2xl">🙂</span>
+                        <span className="font-semibold text-sm text-slate-700">Bom</span>
+                    </button>
+                    <button 
+                        onClick={() => setSelectedEvaluation('otimo')}
+                        className={`p-4 rounded-3xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${selectedEvaluation === 'otimo' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'}`}
+                    >
+                        <span className="text-2xl">😄</span>
+                        <span className="font-semibold text-sm text-slate-700">Ótimo</span>
+                    </button>
                 </div>
 
-                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+                <div className="flex justify-center gap-3">
                     <button 
                         onClick={() => setIsEvaluationModalOpen(false)}
-                        className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
+                        className="px-6 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={handleConfirmSaveNote}
-                        className={`px-6 py-2.5 rounded-full text-white transition-colors shadow-sm font-medium ${selectedEvaluation ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-300 cursor-not-allowed'}`}
+                        className={`px-6 py-2 rounded-full text-white transition-colors shadow-sm ${selectedEvaluation ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-300 cursor-not-allowed'}`}
                         disabled={!selectedEvaluation}
                     >
-                        Confirmar Avaliação
+                        OK
                     </button>
                 </div>
             </div>
@@ -929,28 +967,28 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
 
       {/* Edit Note Modal */}
       {editingNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 animate-slide-up overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[100] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold text-slate-800">Editar Anotação</h3>
-                    <button onClick={handleCloseEditNote} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={handleCloseEditNote} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
                         <CloseIcon />
                     </button>
                 </div>
                 
-                <div className="p-6 space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Conteúdo da Anotação</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Conteúdo da Anotação</label>
                         <textarea 
                             value={editContent} 
                             onChange={(e) => setEditContent(e.target.value)} 
-                            className="w-full p-3 border rounded-lg h-48 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                            className="w-full p-2.5 border rounded-md h-48 bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
                             placeholder="Edite o conteúdo aqui..."
                         ></textarea>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Avaliação da Sessão</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Avaliação da Sessão</label>
                         <div className="grid grid-cols-4 gap-2">
                             {['pessimo', 'ruim', 'bom', 'otimo'].map((evalKey) => {
                                 const isSelected = editEvaluation === evalKey;
@@ -988,16 +1026,16 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
                     <button 
                         onClick={handleCloseEditNote}
-                        className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
+                        className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors font-medium"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={handleSaveEditedNote}
-                        className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                        className="px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium shadow-sm"
                     >
                         Salvar Alterações
                     </button>
@@ -1007,8 +1045,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
       
       {isEndConsultationModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[90] animate-fade-in">
-            <div className="bg-white rounded-xl shadow-xl p-8 text-center animate-slide-up transform max-w-sm mx-4 w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[90] animate-fade-in">
+            <div className="bg-white p-8 rounded-lg shadow-xl text-center animate-slide-up transform max-w-sm mx-4">
                 <div className="mb-4 flex justify-center text-rose-500">
                      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="6" y="4" width="4" height="16"></rect>
@@ -1016,8 +1054,8 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800">Atendimento Encerrado</h2>
-                <p className="text-slate-600 mt-2 mb-6">Preencha o prontuário posteriormente.</p>
-                <button onClick={confirmEndConsultation} className="px-6 py-2.5 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors font-medium w-full">
+                <p className="text-slate-600 mt-2 mb-4">Preencha o prontuário posteriormente.</p>
+                <button onClick={confirmEndConsultation} className="px-6 py-2 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors">
                     OK
                 </button>
             </div>
@@ -1025,25 +1063,23 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isReceiptModalOpen && receiptData && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[80] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 text-center overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="p-8">
-                    <div className="mb-4 flex justify-center text-emerald-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Pagamento Confirmado!</h3>
-                    <p className="text-slate-600">Deseja emitir o recibo para <strong>{receiptData.name}</strong>?</p>
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[80] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+             <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 text-center" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-4 flex justify-center text-emerald-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
                 </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Pagamento Confirmado!</h3>
+                <p className="text-slate-600 mb-6">Deseja emitir o recibo para <strong>{receiptData.name}</strong>?</p>
 
-                <div className="flex justify-center gap-3 p-6 border-t border-slate-100 bg-slate-50">
-                    <button onClick={() => setIsReceiptModalOpen(false)} className="px-5 py-2.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors font-medium">
+                <div className="flex justify-center gap-3">
+                    <button onClick={() => setIsReceiptModalOpen(false)} className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors">
                         Não, obrigado
                     </button>
-                    <button onClick={handleGenerateReceipt} className="px-6 py-2.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium shadow-sm">
-                        <PrintIcon /> Sim, emitir
+                    <button onClick={handleGenerateReceipt} className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                        <PrintIcon /> Sim, emitir recibo
                     </button>
                 </div>
              </div>
@@ -1051,27 +1087,27 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
       )}
 
       {isPaymentModalOpen && todayAppointment && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-               <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-slate-800">Registrar Pagamento</h3>
-                  <button onClick={() => setIsPaymentModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
+                  <button onClick={() => setIsPaymentModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
                </div>
 
-               <div className="p-6 space-y-4">
+               <div className="space-y-4">
                   <p className="text-sm text-slate-600">Confirme o valor e o método de pagamento para finalizar a consulta.</p>
 
-                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                  <div className="bg-slate-50 p-3 rounded-md border border-slate-200 text-center">
                       <p className="text-xs text-slate-500 uppercase font-semibold">Valor a Receber</p>
-                      <p className="text-2xl font-bold text-emerald-600 mt-1">{todayAppointment.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
+                      <p className="text-2xl font-bold text-emerald-600">{todayAppointment.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>
                   </div>
 
                   <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Forma de Pagamento</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
                       <select
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="w-full p-3 border rounded-lg bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        className="w-full p-2 border rounded-md bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       >
                           <option value="Pix">Pix</option>
                           <option value="Cartão de Crédito">Cartão de Crédito</option>
@@ -1079,40 +1115,40 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                           <option value="Dinheiro">Dinheiro</option>
                       </select>
                   </div>
-               </div>
 
-               <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
-                  <button
-                    onClick={() => setIsPaymentModalOpen(false)}
-                    className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleConfirmPaymentAndFinalize}
-                    className="px-6 py-2.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm font-medium"
-                  >
-                    Confirmar Pagamento
-                  </button>
+                  <div className="flex justify-end gap-3 pt-4">
+                      <button
+                        onClick={() => setIsPaymentModalOpen(false)}
+                        className="px-4 py-2 rounded-full bg-slate-200 text-slate-800 hover:bg-slate-300 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleConfirmPaymentAndFinalize}
+                        className="px-4 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+                      >
+                        Confirmar Pagamento
+                      </button>
+                  </div>
                </div>
             </div>
           </div>
       )}
 
       {isExportModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
-               <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-[70] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-slate-800">Exportar Prontuário</h3>
-                  <button onClick={() => setIsExportModalOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"><CloseIcon/></button>
+                  <button onClick={() => setIsExportModalOpen(false)} className="p-1 rounded-full hover:bg-slate-100"><CloseIcon/></button>
                </div>
 
-               <div className="p-6 space-y-4">
+               <div className="space-y-4">
                   <p className="text-sm text-slate-600 mb-4">Selecione o tipo de documento que deseja gerar:</p>
 
                   <button
                     onClick={() => handleExportPDF('full')}
-                    className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold py-3 px-4 rounded-xl transition-colors text-left flex items-center justify-between group"
+                    className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold py-3 px-4 rounded-3xl transition-colors text-left flex items-center justify-between group"
                   >
                     <span>Prontuário Completo</span>
                     <span className="text-xs font-normal bg-white px-2 py-1 rounded-full border border-indigo-200 group-hover:border-indigo-300">Preenchido</span>
@@ -1120,26 +1156,16 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
 
                   <button
                     onClick={() => handleExportPDF('blank')}
-                    className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors text-left flex items-center justify-between group"
+                    className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-3xl transition-colors text-left flex items-center justify-between group"
                   >
                     <span>Ficha Clínica em Branco</span>
                     <span className="text-xs font-normal bg-white px-2 py-1 rounded-full border border-slate-200 group-hover:border-slate-300">Para Impressão</span>
                   </button>
                </div>
-               
-               <div className="p-6 border-t border-slate-100 flex justify-end">
-                   <button 
-                    onClick={() => setIsExportModalOpen(false)}
-                    className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors font-medium"
-                   >
-                       Cancelar
-                   </button>
-               </div>
             </div>
           </div>
       )}
 
-      {/* ... Rest of the component ... */}
       <div className="bg-slate-50 p-4 rounded-lg mb-6 border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-sm text-slate-700">
           <p><span className="font-semibold">E-mail:</span> {patient.email}</p>
           <p><span className="font-semibold">Telefone:</span> {patient.phone || 'N/A'}</p>
@@ -1194,8 +1220,6 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                     )}
                 </div>
                 
-                {/* ... Anamnesis Form Inputs (Keep existing logic, just ensure container is clean) ... */}
-                {/* To save space, I will assume the rest of the form logic remains identical to the previous version unless layout changes are needed. The provided code already uses standard tailwind classes that fit the theme. */}
                 {/* 1. Dados Pessoais */}
                 <div>
                    <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-2 mb-4">1. Dados Pessoais</h4>
@@ -1211,7 +1235,6 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                              ))}
                          </div>
                       </div>
-                      {/* ... (Rest of form inputs - kept identical for brevity as they are internal to the page, not a modal) ... */}
                       <div>
                           <label className="block text-sm font-medium text-slate-600 mb-1">Possui Filhos?</label>
                           <div className="flex items-center gap-3 text-sm">
@@ -1283,7 +1306,6 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                                 </select>
                             </div>
                        </div>
-                       {/* ... More inputs ... */}
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            <div>
                                 <label className="block text-sm font-medium text-slate-600 mb-1">Possui Irmãos?</label>
@@ -1558,40 +1580,121 @@ const ElectronicHealthRecord: React.FC<ElectronicHealthRecordProps> = ({
                       </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-700">
-                      <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                          <h5 className="font-bold text-indigo-800 mb-2">Dados Pessoais</h5>
-                          <p><strong>Estado Civil:</strong> <span className="capitalize">{anamnesisForm.civilStatus || '-'}</span></p>
-                          <p><strong>Filhos:</strong> <span className="capitalize">{anamnesisForm.hasChildren} {anamnesisForm.hasChildren === 'sim' ? `(${anamnesisForm.numberOfChildren})` : ''}</span></p>
-                          <p><strong>Profissão:</strong> {anamnesisForm.occupation || '-'}</p>
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-6 text-sm text-slate-800">
+                      
+                      {/* Section 1 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">1. Dados Pessoais</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <p><span className="font-semibold text-slate-600">Estado Civil:</span> {displayFmt(anamnesisForm.civilStatus).replace('(a)', '')}</p>
+                               <p><span className="font-semibold text-slate-600">Filhos:</span> {displayFmt(anamnesisForm.hasChildren)} {anamnesisForm.hasChildren === 'sim' ? `(${anamnesisForm.numberOfChildren})` : ''}</p>
+                               <p><span className="font-semibold text-slate-600">Aborto:</span> {displayFmt(anamnesisForm.hadAbortion)}</p>
+                               <p><span className="font-semibold text-slate-600">Escolaridade:</span> {displayFmt(anamnesisForm.educationLevel).replace('_', ' ')}</p>
+                               <p className="md:col-span-2"><span className="font-semibold text-slate-600">Profissão:</span> {anamnesisForm.occupation || '-'}</p>
+                          </div>
                       </div>
-                      <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                          <h5 className="font-bold text-indigo-800 mb-2">Histórico Familiar</h5>
-                          <p><strong>Mãe:</strong> {anamnesisForm.mothersName || '-'} ({anamnesisForm.mothersRelationship || '-'})</p>
-                          <p><strong>Pai:</strong> {anamnesisForm.fathersName || '-'} ({anamnesisForm.fathersRelationship || '-'})</p>
+
+                      {/* Section 2 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">2. Histórico Familiar</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <p><span className="font-semibold text-slate-600">Mãe:</span> {anamnesisForm.mothersName || '-'} ({displayFmt(anamnesisForm.mothersRelationship)})</p>
+                               <p><span className="font-semibold text-slate-600">Pai:</span> {anamnesisForm.fathersName || '-'} ({displayFmt(anamnesisForm.fathersRelationship)})</p>
+                               <p><span className="font-semibold text-slate-600">Irmãos:</span> {displayFmt(anamnesisForm.hasSiblings)} {anamnesisForm.hasSiblings === 'sim' ? `(${anamnesisForm.numberOfSiblings})` : ''}</p>
+                               <p><span className="font-semibold text-slate-600">Rel. Irmãos:</span> {displayFmt(anamnesisForm.siblingsRelationship)}</p>
+                               <p className="md:col-span-2"><span className="font-semibold text-slate-600">Infância:</span> {displayFmt(anamnesisForm.childhoodDescription)}</p>
+                          </div>
                       </div>
-                      <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                          <h5 className="font-bold text-indigo-800 mb-2">Saúde</h5>
-                          <p><strong>Medicação:</strong> {anamnesisForm.continuousMedication === 'sim' ? anamnesisForm.medicationsDetails : 'Não'}</p>
-                          <p><strong>Substâncias:</strong> {[
-                              anamnesisForm.substanceUse_marijuana && 'Maconha',
-                              anamnesisForm.substanceUse_cocaine && 'Cocaína',
-                              anamnesisForm.substanceUse_alcohol && 'Álcool',
-                              anamnesisForm.substanceUse_cigarette && 'Cigarro',
-                              anamnesisForm.substanceUse_none && 'Nenhuma'
-                          ].filter(Boolean).join(', ') || '-'}</p>
+
+                      {/* Section 3 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">3. Saúde Geral</h5>
+                          <div className="grid grid-cols-1 gap-2">
+                               <p><span className="font-semibold text-slate-600">Medicação Contínua:</span> {anamnesisForm.continuousMedication === 'sim' ? anamnesisForm.medicationsDetails : 'Não'}</p>
+                               <p><span className="font-semibold text-slate-600">Diagnóstico:</span> {anamnesisForm.relevantMedicalDiagnosis || '-'}</p>
+                               <p><span className="font-semibold text-slate-600">Substâncias:</span> {[
+                                  anamnesisForm.substanceUse_marijuana && 'Maconha',
+                                  anamnesisForm.substanceUse_cocaine && 'Cocaína',
+                                  anamnesisForm.substanceUse_alcohol && 'Álcool',
+                                  anamnesisForm.substanceUse_cigarette && 'Cigarro',
+                                  anamnesisForm.substanceUse_none && 'Nenhuma'
+                              ].filter(Boolean).join(', ') || '-'}</p>
+                               <p><span className="font-semibold text-slate-600">Sono:</span> {displayFmt(anamnesisForm.sleepQuality)}</p>
+                          </div>
                       </div>
-                       <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                          <h5 className="font-bold text-indigo-800 mb-2">Motivo Principal</h5>
-                          <p className="italic">"{anamnesisForm.mainReason || 'Não informado'}"</p>
+
+                      {/* Section 4 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">4. Aspectos Psicológicos</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <p className="md:col-span-2"><span className="font-semibold text-slate-600">Sintomas:</span> {[
+                                  anamnesisForm.mainSymptoms_sadness && 'Tristeza',
+                                  anamnesisForm.mainSymptoms_depression && 'Depressão',
+                                  anamnesisForm.mainSymptoms_anxiety && 'Ansiedade',
+                                  anamnesisForm.mainSymptoms_nervousness && 'Nervosismo',
+                                  anamnesisForm.mainSymptoms_phobias && 'Fobias'
+                               ].filter(Boolean).join(', ') || '-'} {anamnesisForm.mainSymptoms_otherFear ? `(${anamnesisForm.mainSymptoms_otherFear})` : ''}</p>
+                               
+                               <p><span className="font-semibold text-slate-600">Ansiedade:</span> {displayFmt(anamnesisForm.anxietyLevel)}</p>
+                               <p><span className="font-semibold text-slate-600">Irritabilidade:</span> {displayFmt(anamnesisForm.irritabilityLevel)}</p>
+                               <p><span className="font-semibold text-slate-600">Tristeza:</span> {displayFmt(anamnesisForm.sadnessLevel)}</p>
+                               
+                               <p><span className="font-semibold text-slate-600">Culpa:</span> {displayFmt(anamnesisForm.carriesGuilt)}</p>
+                               <p><span className="font-semibold text-slate-600">Injustiça:</span> {displayFmt(anamnesisForm.carriesInjustice)}</p>
+                               
+                               <p className="md:col-span-2"><span className="font-semibold text-slate-600 text-rose-600">Ideias Suicidas:</span> {displayFmt(anamnesisForm.suicidalThoughts)} {anamnesisForm.suicidalThoughts === 'sim' ? `(${anamnesisForm.suicidalThoughtsComment})` : ''}</p>
+                          </div>
                       </div>
+
+                      {/* Section 5 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">5. Vida Social e Rotina</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <p><span className="font-semibold text-slate-600">Amigos Próximos:</span> {displayFmt(anamnesisForm.hasCloseFriends)}</p>
+                               <p><span className="font-semibold text-slate-600">Socialmente:</span> {displayFmt(anamnesisForm.socialConsideration)}</p>
+                               <p><span className="font-semibold text-slate-600">Atividade Física:</span> {displayFmt(anamnesisForm.physicalActivity)}</p>
+                               <p><span className="font-semibold text-slate-600">Financeiro:</span> {displayFmt(anamnesisForm.financialStatus)}</p>
+                               <div className="md:col-span-2">
+                                   <span className="font-semibold text-slate-600 block mb-1">Rotina Diária:</span>
+                                   <p className="text-slate-600 bg-white p-2 rounded border border-slate-100 text-xs italic">{anamnesisForm.dailyRoutine || '-'}</p>
+                               </div>
+                          </div>
+                      </div>
+
+                      {/* Section 6 */}
+                      <div>
+                          <h5 className="font-bold text-indigo-800 border-b border-indigo-100 pb-1 mb-2">6. Buscando Ajuda</h5>
+                          <div className="grid grid-cols-1 gap-2">
+                               <p><span className="font-semibold text-slate-600">Origem:</span> {displayFmt(anamnesisForm.howFoundAnalysis)} {anamnesisForm.howFoundAnalysis === 'outro' ? `(${anamnesisForm.howFoundAnalysisOther})` : ''}</p>
+                               <p><span className="font-semibold text-slate-600">Terapia Anterior:</span> {displayFmt(anamnesisForm.previousTherapy)} {anamnesisForm.previousTherapy === 'sim' ? `(${anamnesisForm.previousTherapyDuration})` : ''}</p>
+                               
+                               <div className="mt-2">
+                                   <span className="font-semibold text-slate-600 block mb-1">Motivo Principal:</span>
+                                   <p className="text-slate-600 bg-white p-2 rounded border border-slate-100 text-xs italic">{anamnesisForm.mainReason || '-'}</p>
+                               </div>
+                               
+                               <p><span className="font-semibold text-slate-600">Início:</span> {anamnesisForm.situationStart || '-'}</p>
+                               
+                               <div className="mt-2">
+                                   <span className="font-semibold text-slate-600 block mb-1">Evento Desencadeador:</span>
+                                   <p className="text-slate-600 bg-white p-2 rounded border border-slate-100 text-xs italic">{anamnesisForm.triggeringEvent || '-'}</p>
+                               </div>
+                               
+                               <div className="mt-2">
+                                   <span className="font-semibold text-slate-600 block mb-1">Expectativas:</span>
+                                   <p className="text-slate-600 bg-white p-2 rounded border border-slate-100 text-xs italic">{anamnesisForm.expectationsAnalysis || '-'}</p>
+                               </div>
+                          </div>
+                      </div>
+
+                      {/* Section 7 */}
+                      {anamnesisForm.generalObservations && (
+                          <div className="bg-amber-50 p-3 rounded border border-amber-100 text-sm">
+                              <h5 className="font-bold text-amber-800 mb-1">7. Observações Gerais</h5>
+                              <p>{anamnesisForm.generalObservations}</p>
+                          </div>
+                      )}
                   </div>
-                  {anamnesisForm.generalObservations && (
-                      <div className="bg-amber-50 p-3 rounded border border-amber-100 text-sm">
-                          <h5 className="font-bold text-amber-800 mb-1">Observações Gerais</h5>
-                          <p>{anamnesisForm.generalObservations}</p>
-                      </div>
-                  )}
               </div>
             )}
           </div>
